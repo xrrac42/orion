@@ -1,11 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { mockClientes, mockBalancetes } from '@/lib/mockData';
 import { formatDate, formatMonth, formatFileSize } from '@/lib/utils';
 import Link from 'next/link';
 import { 
@@ -17,21 +16,82 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline';
 
+interface Cliente {
+  id: string;
+  nome: string;
+  cnpj: string;
+  contato: string;
+  email: string;
+  telefone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Balancete {
+  id: string;
+  cliente_id: string;
+  mes: number;
+  ano: number;
+  arquivo_nome: string;
+  arquivo_tamanho: number;
+  data_upload: string;
+}
+
 export default function ClienteBalancetesPage() {
   const params = useParams();
   const clienteId = params.id as string;
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [balancetes, setBalancetes] = useState<Balancete[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedMes, setSelectedMes] = useState('');
   const [selectedAno, setSelectedAno] = useState('');
 
-  const cliente = mockClientes.find(c => c.id === clienteId);
-  const balancetes = mockBalancetes
-    .filter(b => b.clienteId === clienteId)
-    .sort((a, b) => {
-      if (a.ano !== b.ano) return b.ano - a.ano;
-      return b.mes - a.mes;
-    });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+  // Buscar dados do cliente
+  const clienteResponse = await fetch(`http://localhost:8000/api/clients/${clienteId}`);
+        if (clienteResponse.ok) {
+          const clienteData = await clienteResponse.json();
+          setCliente(clienteData);
+        }
+
+  // Buscar balancetes do cliente
+  const balancetesResponse = await fetch(`http://localhost:8000/api/balancetes/cliente/${clienteId}`);
+        if (balancetesResponse.ok) {
+          const balancetesData = await balancetesResponse.json();
+          setBalancetes(balancetesData.sort((a: Balancete, b: Balancete) => {
+            if (a.ano !== b.ano) return b.ano - a.ano;
+            return b.mes - a.mes;
+          }));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [clienteId]);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900">Carregando...</h1>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!cliente) {
     return (
@@ -138,7 +198,7 @@ export default function ClienteBalancetesPage() {
                   <h3 className="text-sm font-medium text-gray-500">Último Upload</h3>
                   <p className="mt-1 text-sm text-gray-900">
                     {balancetes.length > 0 
-                      ? formatDate(balancetes[0].dataUpload)
+                      ? formatDate(new Date(balancetes[0].data_upload))
                       : 'Nenhum upload realizado'
                     }
                   </p>
@@ -189,34 +249,28 @@ export default function ClienteBalancetesPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatDate(balancete.dataUpload)}
+                            {formatDate(new Date(balancete.data_upload))}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
-                              <div className="text-sm text-gray-900">{balancete.arquivo}</div>
+                              <div className="text-sm text-gray-900">{balancete.arquivo_nome}</div>
                               <div className="text-sm text-gray-500">
-                                {formatFileSize(balancete.tamanhoArquivo)}
+                                {formatFileSize(balancete.arquivo_tamanho)}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              balancete.processado 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {balancete.processado ? 'Processado' : 'Processando'}
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              Processado
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
-                              {balancete.processado && (
-                                <Link href={`/clientes/${clienteId}/dashboard?balancete=${balancete.id}`}>
-                                  <Button size="sm" variant="outline" title="Ver Dashboard">
-                                    <EyeIcon className="h-4 w-4" />
-                                  </Button>
-                                </Link>
-                              )}
+                              <Link href={`/clientes/${clienteId}/dashboard?balancete=${balancete.id}`}>
+                                <Button size="sm" variant="outline" title="Ver Dashboard">
+                                  <EyeIcon className="h-4 w-4" />
+                                </Button>
+                              </Link>
                               <Button size="sm" variant="outline" title="Baixar PDF">
                                 <ArrowDownTrayIcon className="h-4 w-4" />
                               </Button>

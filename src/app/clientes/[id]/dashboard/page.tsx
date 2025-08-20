@@ -1,22 +1,219 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import FluxoCaixaChart from '@/components/charts/FluxoCaixaChart';
-import PieChart from '@/components/charts/PieChart';
+import Link from 'next/link';
 import { 
-  mockClientes, 
-  mockBalancetes, 
-  mockResumoFinanceiro,
-  mockGastosPorCategoria,
-  mockFormasPagamento,
-  mockFluxoCaixa,
-  mockMotivosGasto,
-  mockLancamentos
-} from '@/lib/mockData';
+  ArrowLeftIcon,
+  CalendarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  BanknotesIcon
+} from '@heroicons/react/24/outline';
+
+interface Cliente {
+  id: string;
+  nome: string;
+  cnpj: string;
+  contato: string;
+  email: string;
+  telefone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export default function ClienteDashboardPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const clienteId = params.id as string;
+  const balanceteId = searchParams.get('balancete');
+  
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCliente = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/clientes/${clienteId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCliente(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar cliente:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (clienteId) {
+      fetchCliente();
+    }
+  }, [clienteId]);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900">Carregando...</h1>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!cliente) {
+    return (
+      <MainLayout>
+        <div className="py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900">Cliente não encontrado</h1>
+              <Link href="/clientes">
+                <Button className="mt-4">Voltar para Clientes</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex items-center">
+              <Link href={`/clientes/${clienteId}/balancetes`}>
+                <Button variant="ghost" size="sm" className="mr-4">
+                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                  Voltar
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{cliente.nome}</h1>
+                <p className="mt-2 text-gray-600">
+                  Dashboard Financeiro • CNPJ: {cliente.cnpj}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Dashboard em Desenvolvimento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Dashboard em Construção</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Os gráficos e relatórios financeiros estarão disponíveis em breve.
+                </p>
+                {balanceteId && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    Balancete selecionado: {balanceteId}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <BanknotesIcon className="h-8 w-8 text-green-500" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Total de Receitas
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        R$ 0,00
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <ArrowTrendingDownIcon className="h-8 w-8 text-red-500" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Total de Gastos
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        R$ 0,00
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <ArrowTrendingUpIcon className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Lucro Líquido
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        R$ 0,00
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <CalendarIcon className="h-8 w-8 text-purple-500" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Margem de Lucro
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        0%
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { formatCurrency, formatDate, formatMonth } from '@/lib/utils';
 import Link from 'next/link';
 import { 
@@ -27,9 +224,43 @@ import {
   BanknotesIcon
 } from '@heroicons/react/24/outline';
 
+interface Cliente {
+  id: string;
+  nome: string;
+  cnpj: string;
+  contato: string;
+  email: string;
+  telefone: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function ClienteDashboardPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const clienteId = params.id as string;
+  const balanceteId = searchParams.get('balancete');
+  
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCliente = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/clientes/${clienteId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCliente(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar cliente:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCliente();
+  }, [clienteId]);
   const clienteId = params.id as string;
   const balanceteId = searchParams.get('balancete');
   

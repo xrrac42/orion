@@ -1,200 +1,231 @@
-'use client';
+'use client'
 
-import MainLayout from '@/components/layout/MainLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { mockClientes, mockBalancetes } from '@/lib/mockData';
-import { formatDate, formatMonth } from '@/lib/utils';
-import Link from 'next/link';
-import { 
-  UsersIcon, 
-  DocumentTextIcon, 
-  ExclamationTriangleIcon,
-  CheckCircleIcon 
-} from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+
 
 export default function DashboardPage() {
-  const totalClientes = mockClientes.length;
-  const balancetesPendentes = mockClientes.filter(cliente => {
-    const ultimoBalancete = mockBalancetes
-      .filter(b => b.clienteId === cliente.id)
-      .sort((a, b) => new Date(b.dataUpload).getTime() - new Date(a.dataUpload).getTime())[0];
-    
-    if (!ultimoBalancete) return true;
-    
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth() + 1;
-    const anoAtual = hoje.getFullYear();
-    
-    return ultimoBalancete.mes !== mesAtual || ultimoBalancete.ano !== anoAtual;
-  }).length;
-  
-  const uploadsRecentes = mockBalancetes
-    .sort((a, b) => new Date(b.dataUpload).getTime() - new Date(a.dataUpload).getTime())
-    .slice(0, 5);
 
-  return (
-    <MainLayout>
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-2 text-gray-600">
-              Visão geral da gestão contábil dos seus clientes
+  const [stats, setStats] = useState({
+    totalClientes: 0,
+    totalBalancetes: 0,
+    loading: true
+  })
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+  const res = await fetch('http://localhost:8000/api/dashboard/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setStats({
+            totalClientes: data.total_clientes || 0,
+            totalBalancetes: data.total_balancetes || 0,
+            loading: false
+          });
+        } else {
+          setStats(prev => ({ ...prev, loading: false }));
+        }
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+        setStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (stats.loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  // Se não há dados, mostrar tela de boas-vindas
+  if (stats.totalClientes === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Bem-vindo ao Orion! 🚀
+            </h1>
+            <p className="text-lg text-gray-600 mb-8">
+              Sua plataforma de gestão financeira está pronta para uso
             </p>
           </div>
 
-          {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex items-center">
-                  <UsersIcon className="h-8 w-8 text-blue-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total de Clientes</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalClientes}</p>
-                  </div>
+          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="mx-auto h-24 w-24 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
                 </div>
-              </CardContent>
-            </Card>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  Ainda não há números disponíveis
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Para começar a ver seus dashboards e relatórios, você precisa cadastrar clientes e adicionar seus balancetes mensais.
+                </p>
+              </div>
 
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex items-center">
-                  <DocumentTextIcon className="h-8 w-8 text-green-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Balancetes Enviados</p>
-                    <p className="text-2xl font-bold text-gray-900">{mockBalancetes.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex items-center">
-                  <ExclamationTriangleIcon className="h-8 w-8 text-orange-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Balancetes Pendentes</p>
-                    <p className="text-2xl font-bold text-gray-900">{balancetesPendentes}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex items-center">
-                  <CheckCircleIcon className="h-8 w-8 text-blue-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Processados</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {mockBalancetes.filter(b => b.processado).length}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Uploads Recentes */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Uploads Recentes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {uploadsRecentes.map((balancete) => {
-                    const cliente = mockClientes.find(c => c.id === balancete.clienteId);
-                    return (
-                      <div key={balancete.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{cliente?.nome}</p>
-                          <p className="text-sm text-gray-500">
-                            {formatMonth(balancete.mes, balancete.ano)} • {formatDate(balancete.dataUpload)}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            balancete.processado 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {balancete.processado ? 'Processado' : 'Pendente'}
-                          </span>
-                          <Link href={`/clientes/${balancete.clienteId}/dashboard?balancete=${balancete.id}`}>
-                            <Button size="sm" variant="outline">
-                              Ver Dashboard
-                            </Button>
-                          </Link>
-                        </div>
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 text-center">
+                  Primeiros passos:
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 bg-indigo-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">1</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-900">Cadastre seus clientes</p>
+                      <p className="text-sm text-gray-600">Adicione as empresas que você atende</p>
+                    </div>
+                  </div>
 
-            {/* Pesquisa Rápida de Clientes */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pesquisa Rápida</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Input
-                    placeholder="Buscar cliente por nome ou CNPJ..."
-                    className="w-full"
-                  />
-                  
-                  <div className="space-y-3">
-                    {mockClientes.slice(0, 3).map((cliente) => (
-                      <div key={cliente.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{cliente.nome}</p>
-                          <p className="text-sm text-gray-500">{cliente.cnpj}</p>
-                        </div>
-                        <Link href={`/clientes/${cliente.id}`}>
-                          <Button size="sm" variant="outline">
-                            Gerenciar
-                          </Button>
-                        </Link>
+                  <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 bg-indigo-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">2</span>
                       </div>
-                    ))}
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-900">Adicione balancetes mensais</p>
+                      <p className="text-sm text-gray-600">Insira receitas e despesas por mês/ano</p>
+                    </div>
                   </div>
 
-                  <Link href="/clientes">
-                    <Button className="w-full" variant="outline">
-                      Ver Todos os Clientes
-                    </Button>
-                  </Link>
+                  <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 bg-indigo-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">3</span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-900">Visualize os insights</p>
+                      <p className="text-sm text-gray-600">Acompanhe dashboards e relatórios automáticos</p>
+                    </div>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="pt-4">
+                <Link
+                  href="/clientes"
+                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  🎯 Começar agora - Cadastrar primeiro cliente
+                </Link>
+              </div>
+            </div>
           </div>
-
-          {/* Alertas */}
-          {balancetesPendentes > 0 && (
-            <Card className="mt-8 border-orange-200 bg-orange-50">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-orange-600 mr-3" />
-                  <div>
-                    <h3 className="text-lg font-medium text-orange-900">
-                      Atenção: Balancetes Pendentes
-                    </h3>
-                    <p className="text-orange-700">
-                      Existem {balancetesPendentes} cliente(s) com balancetes pendentes para o mês atual.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
-    </MainLayout>
-  );
+    )
+  }
+
+  // Dashboard com dados reais
+  return (
+    <div className="p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-2 text-gray-600">
+          Visão geral da gestão contábil dos seus clientes
+        </p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Total de Clientes
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalClientes}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Balancetes Cadastrados
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalBalancetes}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Links rápidos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Ações Rápidas</h3>
+            <div className="space-y-3">
+              <Link
+                href="/clientes"
+                className="block w-full text-left px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                📋 Gerenciar Clientes
+              </Link>
+              <Link
+                href="/relatorios"
+                className="block w-full text-left px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                📊 Ver Relatórios
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Status do Sistema</h3>
+            <div className="space-y-3">
+              <div className="flex items-center">
+                <div className="h-2 w-2 bg-green-400 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-600">Banco de dados conectado</span>
+              </div>
+              <div className="flex items-center">
+                <div className="h-2 w-2 bg-green-400 rounded-full mr-3"></div>
+                <span className="text-sm text-gray-600">Sistema operacional</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
