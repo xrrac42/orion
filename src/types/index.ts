@@ -5,19 +5,19 @@ export interface Cliente {
   contato: string;
   email: string;
   telefone: string;
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Balancete {
-  id: string;
-  clienteId: string;
-  mes: number;
+  id: number;
+  client_id: string;
   ano: number;
-  arquivo: string;
-  dataUpload: Date;
-  tamanhoArquivo: number;
-  processado: boolean;
+  mes: number;
+  total_receitas: number;
+  total_despesas: number;
+  lucro_bruto: number;
+  created_at?: string;
 }
 
 export interface LancamentoContabil {
@@ -34,12 +34,21 @@ export interface LancamentoContabil {
 }
 
 export interface ResumoFinanceiro {
-  totalGasto: number;
-  totalReceita: number;
-  lucro: number;
-  totalAtivo: number;
-  totalPassivo: number;
-  totalDespesa: number;
+  total_receitas: number;
+  total_despesas: number;
+  lucro_bruto: number;
+  total_lancamentos: number;
+  receitas_operacionais: number;
+  receitas_financeiras: number;
+  custos_operacionais: number;
+  despesas_operacionais: number;
+}
+
+export interface ContaDetalhada {
+  conta: string;
+  valor: number;
+  percentual_categoria?: number;
+  percentual_subgrupo?: number;
 }
 
 export interface GastoPorCategoria {
@@ -47,6 +56,24 @@ export interface GastoPorCategoria {
   valor: number;
   percentual: number;
   cor: string;
+  contas_detalhadas: ContaDetalhada[];
+}
+
+export interface SubgrupoAnalise {
+  nome: string;
+  total: number;
+  percentual_grupo: number;
+  contas: ContaDetalhada[];
+}
+
+export interface GrupoAnalise {
+  total: number;
+  subgrupos: SubgrupoAnalise[];
+}
+
+export interface AnaliseDetalhada {
+  receitas: GrupoAnalise;
+  custos_despesas: GrupoAnalise;
 }
 
 export interface FormaPagamento {

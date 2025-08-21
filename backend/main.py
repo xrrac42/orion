@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
-from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries
+from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries, pdf_processor
 
 # Carregar variáveis de ambiente
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -23,6 +23,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(balancetes.router, prefix="/api/balancetes", tags=["Balancetes"])
+app.include_router(pdf_processor.router, prefix="/api/pdf", tags=["PDF Processing"])
 app.include_router(relatorios.router, prefix="/api/relatorios", tags=["Relatórios"])
 app.include_router(financial_entries.router, prefix="/api/financial-entries", tags=["FinancialEntries"])
 

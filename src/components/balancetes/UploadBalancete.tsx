@@ -1,9 +1,4 @@
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface UploadBalanceteProps {
   clientId: string
@@ -30,37 +25,27 @@ export default function UploadBalancete({ clientId, onUpload }: UploadBalanceteP
     }
     setUploading(true)
     setMessage('Enviando...')
-    const filePath = `public/${clientId}/${ano}-${mes.padStart(2, '0')}-${file.name}`
-    const { error } = await supabase.storage.from('balancetes').upload(filePath, file, { upsert: true })
-    if (error) {
-      setMessage('Erro ao enviar arquivo: ' + error.message)
-      setUploading(false)
-      return
-    }
-    // Chamar backend para registrar balancete
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('client_id', clientId);
+    formData.append('ano', ano);
+    formData.append('mes', mes);
+    // Enviar para o backend
     const res = await fetch('http://localhost:8000/api/balancetes', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-  client_id: clientId,
-        ano: parseInt(ano),
-        mes: parseInt(mes),
-        arquivo_nome: file.name,
-        arquivo_tamanho: file.size,
-        file_path: filePath
-      })
-    })
+      body: formData
+    });
     if (!res.ok) {
-      setMessage('Erro ao registrar balancete no backend')
-      setUploading(false)
-      return
+      setMessage('Erro ao registrar balancete no backend');
+      setUploading(false);
+      return;
     }
-    setMessage('Processando balancete...')
-    if (onUpload) onUpload()
-    setUploading(false)
-    setFile(null)
-    setMes('')
-    setAno('')
+    setMessage('Processando balancete...');
+    if (onUpload) onUpload();
+    setUploading(false);
+    setFile(null);
+    setMes('');
+    setAno('');
   }
 
   return (

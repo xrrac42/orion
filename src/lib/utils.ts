@@ -11,12 +11,27 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return 'Data não disponível';
+  
+  let dateObj: Date;
+  
+  if (typeof date === 'string') {
+    dateObj = new Date(date);
+  } else {
+    dateObj = date;
+  }
+  
+  // Verificar se a data é válida
+  if (isNaN(dateObj.getTime())) {
+    return 'Data inválida';
+  }
+  
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
-  }).format(date);
+  }).format(dateObj);
 }
 
 export function formatMonth(mes: number, ano: number): string {

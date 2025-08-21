@@ -44,17 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Função para buscar perfil do usuário
   const fetchUserProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        console.error('Erro ao buscar perfil:', error)
+      const response = await fetch(`http://localhost:8000/api/auth/profile/${userId}`)
+      
+      if (!response.ok) {
+        console.error('Erro ao buscar perfil:', response.statusText)
         return
       }
 
+      const data = await response.json()
       setUserProfile(data)
     } catch (error) {
       console.error('Erro ao buscar perfil do usuário:', error)

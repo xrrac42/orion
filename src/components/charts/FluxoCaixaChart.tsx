@@ -28,32 +28,33 @@ ChartJS.register(
   Filler
 );
 
+interface FluxoCaixaItem {
+  mes: string;
+  receitas: number;
+  despesas: number;
+}
+
 interface FluxoCaixaChartProps {
-  data: FluxoCaixa[];
+  data: FluxoCaixaItem[];
 }
 
 export default function FluxoCaixaChart({ data }: FluxoCaixaChartProps) {
   const chartRef = useRef<ChartJS<'line'> | null>(null);
 
   const chartData = {
-    labels: data.map(item => 
-      item.data.toLocaleDateString('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit' 
-      })
-    ),
+    labels: data.map(item => item.mes),
     datasets: [
       {
-        label: 'Entradas',
-        data: data.map(item => item.entradas),
+        label: 'Receitas',
+        data: data.map(item => item.receitas),
         borderColor: '#10B981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         fill: false,
         tension: 0.4,
       },
       {
-        label: 'Saídas',
-        data: data.map(item => item.saidas),
+        label: 'Despesas',
+        data: data.map(item => item.despesas),
         borderColor: '#EF4444',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         fill: false,
@@ -61,7 +62,7 @@ export default function FluxoCaixaChart({ data }: FluxoCaixaChartProps) {
       },
       {
         label: 'Saldo',
-        data: data.map(item => item.saldo),
+        data: data.map(item => item.receitas - item.despesas),
         borderColor: '#3B82F6',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         fill: true,
