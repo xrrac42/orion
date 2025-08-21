@@ -158,6 +158,12 @@ export default function ClientesPage() {
                       >
                         Balancetes
                       </Link>
+                      <Link
+                        href={`/clientes/${client.id}/dashboard`}
+                        className="text-green-600 hover:text-green-900 px-3 py-1 border border-green-600 rounded"
+                      >
+                        Dashboard
+                      </Link>
                       <button
                         onClick={() => handleDelete(client.id)}
                         className="text-red-600 hover:text-red-900 px-3 py-1 border border-red-600 rounded"

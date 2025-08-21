@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatDate, formatMonth, formatFileSize } from '@/lib/utils';
+import UploadBalancete from '@/components/balancetes/UploadBalancete';
 import Link from 'next/link';
 import { 
   DocumentArrowUpIcon, 
@@ -29,7 +30,7 @@ interface Cliente {
 
 interface Balancete {
   id: string;
-  cliente_id: string;
+  client_id: string;
   mes: number;
   ano: number;
   arquivo_nome: string;
@@ -44,9 +45,6 @@ export default function ClienteBalancetesPage() {
   const [balancetes, setBalancetes] = useState<Balancete[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedMes, setSelectedMes] = useState('');
-  const [selectedAno, setSelectedAno] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -110,29 +108,7 @@ export default function ClienteBalancetesPage() {
     );
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file);
-    } else {
-      alert('Por favor, selecione um arquivo PDF.');
-    }
-  };
-
-  const handleUpload = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile || !selectedMes || !selectedAno) {
-      alert('Por favor, preencha todos os campos.');
-      return;
-    }
-    
-    // Aqui seria a lógica de upload
-    alert('Upload realizado com sucesso!');
-    setShowUploadForm(false);
-    setSelectedFile(null);
-    setSelectedMes('');
-    setSelectedAno('');
-  };
+  // ...existing code...
 
   const meses = [
     { value: '1', label: 'Janeiro' },
@@ -178,6 +154,22 @@ export default function ClienteBalancetesPage() {
               <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
               Novo Upload
             </Button>
+          {/* Modal de Upload */}
+          {showUploadForm && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Upload de Balancete</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <UploadBalancete clientId={clienteId} onUpload={() => setShowUploadForm(false)} />
+                  <Button variant="outline" className="mt-4 w-full" onClick={() => setShowUploadForm(false)}>
+                    Cancelar
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
           </div>
 
           {/* Informações do Cliente */}
@@ -294,109 +286,14 @@ export default function ClienteBalancetesPage() {
                     Comece fazendo o upload do primeiro balancete deste cliente.
                   </p>
                   <div className="mt-6">
-                    <Button onClick={() => setShowUploadForm(true)}>
-                      <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
-                      Fazer Upload
-                    </Button>
+                    {/* Botão de upload removido, upload sempre visível */}
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Modal de Upload */}
-          {showUploadForm && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
-                <CardHeader>
-                  <CardTitle>Upload de Balancete</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleUpload} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Mês
-                        </label>
-                        <select
-                          value={selectedMes}
-                          onChange={(e) => setSelectedMes(e.target.value)}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                          required
-                        >
-                          <option value="">Selecione</option>
-                          {meses.map((mes) => (
-                            <option key={mes.value} value={mes.value}>
-                              {mes.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Ano
-                        </label>
-                        <select
-                          value={selectedAno}
-                          onChange={(e) => setSelectedAno(e.target.value)}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                          required
-                        >
-                          <option value="">Selecione</option>
-                          {anos.map((ano) => (
-                            <option key={ano.value} value={ano.value}>
-                              {ano.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Arquivo PDF do Balancete
-                      </label>
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={handleFileChange}
-                        className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        required
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Apenas arquivos PDF são aceitos
-                      </p>
-                    </div>
-
-                    {selectedFile && (
-                      <div className="p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-700">
-                          <strong>Arquivo selecionado:</strong> {selectedFile.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Tamanho: {formatFileSize(selectedFile.size)}
-                        </p>
-                      </div>
-                    )}
-                    
-                    <div className="flex space-x-3 pt-4">
-                      <Button type="submit" className="flex-1">
-                        Fazer Upload
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setShowUploadForm(false)}
-                        className="flex-1"
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* Modal removido, upload sempre visível */}
         </div>
       </div>
     </MainLayout>

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 # Modelos Pydantic
 class BalanceteCreate(BaseModel):
-    cliente_id: str
+    client_id: str
     ano: int
     mes: int
     total_receitas: float
@@ -17,7 +17,7 @@ class BalanceteCreate(BaseModel):
 
 class BalanceteResponse(BaseModel):
     id: str
-    cliente_id: str
+    client_id: str
     ano: int
     mes: int
     total_receitas: float
@@ -25,15 +25,15 @@ class BalanceteResponse(BaseModel):
     lucro_bruto: float
     created_at: Optional[str] = None
 
-@router.get("/cliente/{cliente_id}", response_model=List[BalanceteResponse])
-async def get_balancetes_cliente(cliente_id: str):
+@router.get("/cliente/{client_id}", response_model=List[BalanceteResponse])
+async def get_balancetes_cliente(client_id: str):
     """Buscar balancetes de um cliente"""
     try:
         supabase = get_supabase_client()
         
         response = supabase.table('balancetes')\
                           .select('*')\
-                          .eq('cliente_id', cliente_id)\
+                          .eq('client_id', client_id)\
                           .order('ano', desc=True)\
                           .order('mes', desc=True)\
                           .execute()
@@ -43,7 +43,7 @@ async def get_balancetes_cliente(cliente_id: str):
             
         return response.data
     except Exception as e:
-        logger.error(f"Erro ao buscar balancetes do cliente {cliente_id}: {e}")
+        logger.error(f"Erro ao buscar balancetes do cliente {client_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro interno do servidor")
 
 @router.post("/", response_model=BalanceteResponse)
@@ -55,7 +55,7 @@ async def create_balancete(balancete: BalanceteCreate):
         # Verificar se cliente existe
         cliente_response = supabase.table('clientes')\
                                   .select('id')\
-                                  .eq('id', balancete.cliente_id)\
+                                  .eq('id', balancete.client_id)\
                                   .execute()
         
         if not cliente_response.data or len(cliente_response.data) == 0:
@@ -64,7 +64,7 @@ async def create_balancete(balancete: BalanceteCreate):
         # Verificar se já existe balancete para esse período
         existing = supabase.table('balancetes')\
                           .select('id')\
-                          .eq('cliente_id', balancete.cliente_id)\
+                          .eq('client_id', balancete.client_id)\
                           .eq('ano', balancete.ano)\
                           .eq('mes', balancete.mes)\
                           .execute()
