@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries, pdf_processor
+from routers import monthly_analyses
 
 # Carregar variáveis de ambiente
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -26,6 +27,7 @@ app.include_router(balancetes.router, prefix="/api/balancetes", tags=["Balancete
 app.include_router(pdf_processor.router, prefix="/api/pdf", tags=["PDF Processing"])
 app.include_router(relatorios.router, prefix="/api/relatorios", tags=["Relatórios"])
 app.include_router(financial_entries.router, prefix="/api/financial-entries", tags=["FinancialEntries"])
+app.include_router(monthly_analyses.router, tags=["Monthly Analyses"])
 
 @app.get("/")
 async def root():

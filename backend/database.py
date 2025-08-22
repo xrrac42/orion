@@ -207,3 +207,6 @@ async def move_to_quarantine(self, file_path: str, error_info: Dict) -> bool:
 # Adicionar os métodos à classe SupabaseClient
 SupabaseClient.store_financial_entries = store_financial_entries
 SupabaseClient.move_to_quarantine = move_to_quarantine
+
+# Alias para compatibilidade com imports antigos
+get_db = get_supabase_client
