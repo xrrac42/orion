@@ -282,7 +282,7 @@ export default function ClienteBalancetesPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
-                              <Link href={`/clientes/${clienteId}/dashboard?balancete=${balancete.id}`}>
+                              <Link href={`/clientes/${clienteId}/dashboard/${balancete.id}`}>
                                 <Button size="sm" variant="outline" title="Ver Dashboard">
                                   <EyeIcon className="h-4 w-4" />
                                 </Button>

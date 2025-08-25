@@ -61,6 +61,39 @@ Analise o texto de um balancete contábil brasileiro. Sua tarefa é retornar um 
             "period_value": valor,
             "original_data": json.dumps(conta)
         })
-    # 5. Inserir no banco
+    # 5. Tentar obter/gerar analysis_id e anexar a cada entrada
+    analysis_id = None
+    try:
+        # Se o path contém ano-mes no nome, tentar inferir ou buscar balancete existente
+        # Aqui não temos balancete_id, então fallback: criar um monthly_analysis simples
+        # Extrair ano-mes da data_final
+        data_final = llm_json.get('data_final')
+        ref_year = None
+        ref_month = None
+        if data_final:
+            parts = data_final.split('-')
+            if len(parts) >= 2:
+                ref_year = int(parts[0])
+                ref_month = int(parts[1])
+
+        analysis_payload = {
+            'client_id': client_id,
+            'report_date': data_final or None,
+            'reference_month': ref_month,
+            'reference_year': ref_year,
+            'client_name': client_id,
+            'status': 'completed'
+        }
+        create_resp = supabase.table('monthly_analyses').insert(analysis_payload).execute()
+        if create_resp and getattr(create_resp, 'data', None) and len(create_resp.data) > 0:
+            analysis_id = create_resp.data[0].get('id')
+    except Exception:
+        analysis_id = None
+
+    if analysis_id:
+        for item in saida_final:
+            item['analysis_id'] = analysis_id
+
+    # 6. Inserir no banco
     supabase.table("financial_entries").insert(saida_final).execute()
-    return {"ok": True, "itens_inseridos": len(saida_final)}
+    return {"ok": True, "itens_inseridos": len(saida_final), 'analysis_id': analysis_id}

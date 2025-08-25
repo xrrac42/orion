@@ -44,7 +44,8 @@ async def get_financial_entries_cliente(
 
 @router.get("/summary")
 async def get_financial_summary(
-    client_id: str = Query(..., description="ID do cliente"),
+    client_id: Optional[str] = Query(None, description="ID do cliente"),
+    analysis_id: Optional[int] = Query(None, description="ID da análise mensal"),
     balancete_id: Optional[int] = Query(None, description="ID do balancete específico")
 ):
     """Resumo financeiro detalhado do cliente/balancete"""
@@ -52,8 +53,15 @@ async def get_financial_summary(
         supabase = get_supabase_client()
         
         query = supabase.table('financial_entries')\
-                       .select('main_group, subgroup_1, movement_type, period_value, report_date')\
-                       .eq('client_id', client_id)
+                       .select('main_group, subgroup_1, movement_type, period_value, report_date')
+
+        # Prefer analysis_id when provided
+        if analysis_id is not None:
+            query = query.eq('analysis_id', analysis_id)
+        else:
+            if not client_id:
+                raise HTTPException(status_code=400, detail='client_id or analysis_id is required')
+            query = query.eq('client_id', client_id)
         
         if balancete_id:
             # Filtrar por período do balancete
@@ -132,7 +140,8 @@ async def get_financial_summary(
 
 @router.get("/fluxo_caixa")
 async def get_fluxo_caixa(
-    client_id: str = Query(..., description="ID do cliente"),
+    client_id: Optional[str] = Query(None, description="ID do cliente"),
+    analysis_id: Optional[int] = Query(None, description="ID da análise mensal"),
     balancete_id: Optional[int] = Query(None, description="ID do balancete específico")
 ):
     """Fluxo de caixa mensal"""
@@ -163,10 +172,15 @@ async def get_fluxo_caixa(
         query += " GROUP BY ano, mes, movement_type ORDER BY ano, mes"
         
         # Por ora, vamos usar uma abordagem mais simples
-        entries_response = supabase.table('financial_entries')\
-                                  .select('report_date, movement_type, period_value')\
-                                  .eq('client_id', client_id)\
-                                  .execute()
+        q = supabase.table('financial_entries').select('report_date, movement_type, period_value')
+        if analysis_id is not None:
+            q = q.eq('analysis_id', analysis_id)
+        else:
+            if not client_id:
+                raise HTTPException(status_code=400, detail='client_id or analysis_id is required')
+            q = q.eq('client_id', client_id)
+
+        entries_response = q.execute()
         
         if not entries_response.data:
             return []
@@ -208,7 +222,8 @@ async def get_fluxo_caixa(
 
 @router.get("/gastos_categoria")
 async def get_gastos_categoria(
-    client_id: str = Query(..., description="ID do cliente"),
+    client_id: Optional[str] = Query(None, description="ID do cliente"),
+    analysis_id: Optional[int] = Query(None, description="ID da análise mensal"),
     balancete_id: Optional[int] = Query(None, description="ID do balancete específico")
 ):
     """Gastos agrupados por categoria"""
@@ -217,8 +232,14 @@ async def get_gastos_categoria(
         
         query = supabase.table('financial_entries')\
                        .select('subgroup_1, specific_account, period_value')\
-                       .eq('client_id', client_id)\
                        .eq('movement_type', 'Despesa')
+
+        if analysis_id is not None:
+            query = query.eq('analysis_id', analysis_id)
+        else:
+            if not client_id:
+                raise HTTPException(status_code=400, detail='client_id or analysis_id is required')
+            query = query.eq('client_id', client_id)
         
         if balancete_id:
             # Filtrar por período do balancete
@@ -301,7 +322,8 @@ async def get_gastos_categoria(
 
 @router.get("/analise_detalhada")
 async def get_analise_detalhada(
-    client_id: str = Query(..., description="ID do cliente"),
+    client_id: Optional[str] = Query(None, description="ID do cliente"),
+    analysis_id: Optional[int] = Query(None, description="ID da análise mensal"),
     balancete_id: Optional[int] = Query(None, description="ID do balancete específico")
 ):
     """Análise detalhada com separação por grupos principais"""
@@ -309,8 +331,14 @@ async def get_analise_detalhada(
         supabase = get_supabase_client()
         
         query = supabase.table('financial_entries')\
-                       .select('main_group, subgroup_1, specific_account, movement_type, period_value, report_date')\
-                       .eq('client_id', client_id)
+                       .select('main_group, subgroup_1, specific_account, movement_type, period_value, report_date')
+
+        if analysis_id is not None:
+            query = query.eq('analysis_id', analysis_id)
+        else:
+            if not client_id:
+                raise HTTPException(status_code=400, detail='client_id or analysis_id is required')
+            query = query.eq('client_id', client_id)
         
         if balancete_id:
             # Filtrar por período do balancete
@@ -407,7 +435,8 @@ async def get_analise_detalhada(
 
 @router.get("/")
 async def get_financial_entries(
-    client_id: str = Query(..., description="ID do cliente"),
+    client_id: Optional[str] = Query(None, description="ID do cliente"),
+    analysis_id: Optional[int] = Query(None, description="ID da análise mensal"),
     balancete_id: Optional[int] = Query(None, description="ID do balancete específico")
 ):
     """Buscar lançamentos financeiros"""
@@ -415,8 +444,14 @@ async def get_financial_entries(
         supabase = get_supabase_client()
         
         query = supabase.table('financial_entries')\
-                       .select('*')\
-                       .eq('client_id', client_id)
+                       .select('*')
+
+        if analysis_id is not None:
+            query = query.eq('analysis_id', analysis_id)
+        else:
+            if not client_id:
+                raise HTTPException(status_code=400, detail='client_id or analysis_id is required')
+            query = query.eq('client_id', client_id)
         
         if balancete_id:
             # Filtrar por período do balancete

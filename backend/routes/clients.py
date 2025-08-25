@@ -73,6 +73,7 @@ async def get_client(client_id: str):
     try:
         supabase = get_supabase_client()
         response = supabase.table('clients').select('*').eq('id', client_id).single().execute()
+        logger.debug(f"Supabase response for get_client({client_id}): {getattr(response, 'data', None)}; error={getattr(response, 'error', None)}")
         if response.data:
             return response.data
         else:

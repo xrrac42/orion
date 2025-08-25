@@ -2,26 +2,58 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+
+// Importe seus componentes de UI e ícones
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
-import { 
-  ArrowLeftIcon, 
-  ArrowTrendingUpIcon, 
-  ArrowTrendingDownIcon, 
-  BanknotesIcon,
-  MagnifyingGlassIcon,
-  CalendarIcon
-} from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, BanknotesIcon, MagnifyingGlassIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
-// Interfaces para tipagem
+import { formatCurrency } from '@/lib/utils';
+
+// --- ARQUITETURA DE API CORRIGIDA E FINAL ---
+const API_BASE_URL = "http://localhost:8000";
+
+// Funções de serviço alinhadas com as rotas do seu main.py
+async function getClientById(id: string) {
+  const res = await fetch(`${API_BASE_URL}/api/clients/${id}`);
+  if (!res.ok) throw new Error(`Falha ao buscar dados do cliente (status: ${res.status})`);
+  return res.json();
+}
+
+async function getBalancetesForClient(clientId: string) {
+  const res = await fetch(`${API_BASE_URL}/api/balancetes/cliente/${clientId}`);
+  if (!res.ok) throw new Error(`Falha ao buscar lista de balancetes (status: ${res.status})`);
+  return res.json();
+}
+
+async function getDashboardDataQuery(analysisId?: string, balanceteId?: string, month?: number | null, year?: number | null) {
+  const params = new URLSearchParams();
+  if (analysisId) params.set('analysis_id', analysisId);
+  if (balanceteId) params.set('balancete_id', balanceteId);
+  if (month) params.set('month', String(month));
+  if (year) params.set('year', String(year));
+  const url = `${API_BASE_URL}/api/dashboard?${params.toString()}`;
+  console.debug('[dashboard] GET', url);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Falha ao buscar dados do dashboard (status: ${res.status})`);
+  return res.json();
+}
+
+// --- CORREÇÃO APLICADA AQUI ---
+// A função agora aceita clientId e o inclui na URL da requisição.
+async function getFinancialEntries(analysisId: string, clientId: string) {
+  const res = await fetch(`${API_BASE_URL}/api/financial-entries/?analysis_id=${analysisId}&client_id=${clientId}`);
+  if (!res.ok) throw new Error(`Falha ao buscar detalhes das contas (status: ${res.status})`);
+  return res.json();
+}
+
+// --- Interfaces de Tipagem ---
 interface Cliente {
   id: string;
   nome: string;
-  email?: string;
 }
 
 interface Balancete {
@@ -29,17 +61,7 @@ interface Balancete {
   ano: number;
   mes: number;
   status: string;
-}
-
-interface FinancialEntry {
-  id: number;
-  client_id: string;
-  report_date: string;
-  main_group: string;
-  subgroup_1: string;
-  specific_account: string;
-  movement_type: 'Receita' | 'Despesa';
-  period_value: number;
+  analysis_id?: number;
 }
 
 interface KPIData {
@@ -48,14 +70,8 @@ interface KPIData {
   resultado_periodo: number;
 }
 
-interface ReceitaComposicao {
-  subgrupo: string;
-  valor: number;
-  percentual: number;
-}
-
-interface DespesaPrincipal {
-  subgrupo: string;
+interface ChartData {
+  categoria: string;
   valor: number;
 }
 
@@ -65,500 +81,278 @@ interface ContaDetalhe {
   subgrupo: string;
 }
 
+// --- Componente Principal ---
 export default function DashboardFinanceiro() {
   const params = useParams();
   const clienteId = params.id as string;
   
-  // Estados
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [balancetes, setBalancetes] = useState<Balancete[]>([]);
   const [selectedBalanceteId, setSelectedBalanceteId] = useState<string>('');
-  const [selectedBalancete, setSelectedBalancete] = useState<Balancete | null>(null);
+  
   const [kpiData, setKpiData] = useState<KPIData | null>(null);
-  const [receitasComposicao, setReceitasComposicao] = useState<ReceitaComposicao[]>([]);
-  const [despesasPrincipais, setDespesasPrincipais] = useState<DespesaPrincipal[]>([]);
+  const [receitasComposicao, setReceitasComposicao] = useState<ChartData[]>([]);
+  const [despesasPrincipais, setDespesasPrincipais] = useState<ChartData[]>([]);
+  
   const [contasDetalhes, setContasDetalhes] = useState<ContaDetalhe[]>([]);
   const [contasFiltered, setContasFiltered] = useState<ContaDetalhe[]>([]);
   const [filtroSubgrupo, setFiltroSubgrupo] = useState<string>('');
   const [buscaConta, setBuscaConta] = useState<string>('');
 
-  // Funções utilitárias
   const formatMonth = (mes: number, ano: number) => {
-    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     return `${meses[mes - 1]} de ${ano}`;
   };
 
-  const formatPeriod = (balancete: Balancete) => {
-    const lastDay = new Date(balancete.ano, balancete.mes, 0).getDate();
-    return `01/${balancete.mes.toString().padStart(2, '0')}/${balancete.ano} a ${lastDay}/${balancete.mes.toString().padStart(2, '0')}/${balancete.ano}`;
-  };
-
-  // Carregar dados iniciais
+  // 1. Busca os dados iniciais
   useEffect(() => {
-    async function fetchData() {
+    async function fetchInitialData() {
+      if (!clienteId) return;
       try {
-        setLoading(true);
-        
-        // Buscar cliente
-        const clienteRes = await fetch(`http://localhost:8000/api/clientes/${clienteId}`);
-        const clienteData = await clienteRes.json();
-        setCliente(clienteData);
+  console.debug('[dashboard] initial fetch: setLoading(true)');
+  setLoading(true);
+        setError(null);
+        const [clienteData, balancetesData] = await Promise.all([
+          getClientById(clienteId),
+          getBalancetesForClient(clienteId)
+        ]);
 
-        // Buscar balancetes
-        const balancetesRes = await fetch(`http://localhost:8000/api/balancetes/cliente/${clienteId}`);
-        const balancetesData = await balancetesRes.json();
+        setCliente(clienteData);
+        balancetesData.sort((a: Balancete, b: Balancete) => (b.ano * 100 + b.mes) - (a.ano * 100 + a.mes));
         setBalancetes(balancetesData);
-        
-        if (balancetesData.length > 0) {
-          setSelectedBalanceteId(balancetesData[0].id);
-          setSelectedBalancete(balancetesData[0]);
+
+        // Select the first balancete that already has an analysis_id.
+        const firstWithAnalysis = balancetesData.find((b: Balancete) => b.analysis_id !== undefined && b.analysis_id !== null);
+        if (firstWithAnalysis) {
+          setSelectedBalanceteId(String(firstWithAnalysis.analysis_id));
+        } else {
+          setSelectedBalanceteId('');
         }
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('Erro ao carregar dados iniciais:', error);
+        setError(error instanceof Error ? error.message : 'Erro desconhecido');
       } finally {
+        console.debug('[dashboard] initial fetch: setLoading(false)');
         setLoading(false);
       }
     }
-
-    if (clienteId) {
-      fetchData();
-    }
+    fetchInitialData();
   }, [clienteId]);
 
-  // Carregar dados do balancete selecionado
+  // 2. Busca os dados do dashboard quando a análise/seleção/filtros mudam
+  const [activeAnalysisId, setActiveAnalysisId] = useState<string>('');
+  const [filterMonth, setFilterMonth] = useState<number | null>(null);
+  const [filterYear, setFilterYear] = useState<number | null>(null);
+
+  // Auto-activate the selected balancete so the dashboard loads immediately
   useEffect(() => {
-    async function fetchBalanceteData() {
-      if (!selectedBalanceteId) return;
+    if (selectedBalanceteId) {
+      console.debug('[dashboard] auto-activating analysis id from selectedBalanceteId', selectedBalanceteId);
+      setActiveAnalysisId(selectedBalanceteId);
+    }
+  }, [selectedBalanceteId]);
 
+  useEffect(() => {
+    async function fetchDashboardDetails() {
+      if ((!activeAnalysisId && !selectedBalanceteId) || !clienteId) return;
       try {
+        console.debug('[dashboard] fetchDetails: setLoading(true)');
         setLoading(true);
+        setError(null);
 
-        // Buscar entradas financeiras
-        const entriesRes = await fetch(`http://localhost:8000/api/financial-entries?client_id=${clienteId}&balancete_id=${selectedBalanceteId}`);
-        const entries: FinancialEntry[] = await entriesRes.json();
+        const analysisParam = activeAnalysisId || undefined;
+        const balanceteParam = activeAnalysisId ? undefined : (selectedBalanceteId || undefined);
 
-        // Calcular KPIs
-        const receitas = entries.filter(e => e.movement_type === 'Receita');
-        const despesas = entries.filter(e => e.movement_type === 'Despesa');
-        
-        const receita_total = receitas.reduce((sum, e) => sum + e.period_value, 0);
-        const despesa_total = despesas.reduce((sum, e) => sum + e.period_value, 0);
-        
-        setKpiData({
-          receita_total,
-          despesa_total,
-          resultado_periodo: receita_total - despesa_total
-        });
+        const dashboardData = await getDashboardDataQuery(analysisParam, balanceteParam, filterMonth, filterYear);
 
-        // Calcular composição das receitas
-        const receitasAgrupadas = receitas.reduce((acc, entry) => {
-          const subgrupo = entry.subgroup_1;
-          if (!acc[subgrupo]) {
-            acc[subgrupo] = 0;
-          }
-          acc[subgrupo] += entry.period_value;
-          return acc;
-        }, {} as Record<string, number>);
+        if (dashboardData) {
+          setKpiData(dashboardData.kpis);
+          setReceitasComposicao(dashboardData.grafico_receitas || []);
+          setDespesasPrincipais(dashboardData.grafico_despesas || []);
 
-        const receitasComposicaoData = Object.entries(receitasAgrupadas).map(([subgrupo, valor]) => ({
-          subgrupo,
-          valor,
-          percentual: receita_total > 0 ? (valor / receita_total) * 100 : 0
-        }));
-        setReceitasComposicao(receitasComposicaoData);
-
-        // Calcular principais despesas
-        const despesasAgrupadas = despesas.reduce((acc, entry) => {
-          const subgrupo = entry.subgroup_1;
-          if (!acc[subgrupo]) {
-            acc[subgrupo] = 0;
-          }
-          acc[subgrupo] += entry.period_value;
-          return acc;
-        }, {} as Record<string, number>);
-
-        const despesasPrincipaisData = Object.entries(despesasAgrupadas)
-          .map(([subgrupo, valor]) => ({ subgrupo, valor }))
-          .sort((a, b) => b.valor - a.valor);
-        setDespesasPrincipais(despesasPrincipaisData);
-
-        // Preparar detalhes das contas (apenas despesas)
-        const contasDetalhesData = despesas.map(entry => ({
-          conta: entry.specific_account,
-          valor: entry.period_value,
-          subgrupo: entry.subgroup_1
-        }));
-        setContasDetalhes(contasDetalhesData);
-        setContasFiltered(contasDetalhesData);
-
+          const detalhes = (dashboardData.entries || [])
+            .filter((e: any) => e.movement_type === 'Despesa')
+            .map((entry: any) => ({
+              conta: entry.specific_account,
+              valor: entry.period_value,
+              subgrupo: entry.subgroup_1 || 'N/A'
+            }));
+          setContasDetalhes(detalhes);
+        }
       } catch (error) {
         console.error('Erro ao carregar dados do balancete:', error);
+        setError(error instanceof Error ? error.message : 'Erro desconhecido');
       } finally {
+        console.debug('[dashboard] fetchDetails: setLoading(false)');
         setLoading(false);
       }
     }
+    fetchDashboardDetails();
+  }, [activeAnalysisId, selectedBalanceteId, filterMonth, filterYear, clienteId]);
 
-    fetchBalanceteData();
-  }, [selectedBalanceteId, clienteId]);
-
-  // Filtrar contas por subgrupo
+  // 3. Filtra a tabela de detalhes
   useEffect(() => {
     let filtered = contasDetalhes;
-    
     if (filtroSubgrupo) {
       filtered = filtered.filter(conta => conta.subgrupo === filtroSubgrupo);
     }
-    
     if (buscaConta) {
       filtered = filtered.filter(conta => 
         conta.conta.toLowerCase().includes(buscaConta.toLowerCase())
       );
     }
-    
     setContasFiltered(filtered);
   }, [filtroSubgrupo, buscaConta, contasDetalhes]);
 
-  // Componente de Loading
+  // --- Lógica de Renderização ---
+  // selectedBalanceteId may contain an analysis_id (stringified) or a balancete.id
+  const selectedBalancete = balancetes.find(b => String(b.id) === selectedBalanceteId || (b.analysis_id && String(b.analysis_id) === selectedBalanceteId));
+
   if (loading) {
-    return (
-      <MainLayout>
-        <div className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/2 mb-6"></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="h-80 bg-gray-200 rounded"></div>
-                <div className="h-80 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </MainLayout>
-    );
+    return <MainLayout><div className="p-8 text-center">Carregando...</div></MainLayout>;
+  }
+  
+  if (error) {
+    return <MainLayout><div className="p-8 text-center text-red-500">Erro: {error}</div></MainLayout>;
   }
 
-  // Se não há cliente ou balancetes
-  if (!cliente || !balancetes.length) {
+  if (!cliente || balancetes.length === 0) {
     return (
-      <MainLayout>
-        <div className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 flex items-center">
-              <Link href="/clientes">
-                <Button variant="ghost" size="sm" className="mr-4">
-                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                  Voltar
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {cliente?.nome || 'Cliente não encontrado'}
-                </h1>
-              </div>
+        <MainLayout>
+            <div className="p-8 text-center">
+                <h1 className="text-2xl font-bold mb-4">Cliente: {cliente?.nome || '...'}</h1>
+                <p>Nenhum balancete encontrado para este cliente.</p>
+                <Link href={`/clientes/${clienteId}/balancetes`}>
+                    <Button className="mt-4">Gerenciar Balancetes</Button>
+                </Link>
             </div>
-            
-            {!balancetes.length && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">
-                    Nenhum balancete processado
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    É necessário fazer upload e processar um balancete para visualizar o dashboard.
-                  </p>
-                  <div className="mt-6">
-                    <Link href={`/clientes/${clienteId}/balancetes`}>
-                      <Button>Gerenciar Balancetes</Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      </MainLayout>
+        </MainLayout>
     );
   }
 
   return (
     <MainLayout>
+      <h1>teste</h1>
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          {/* COMPONENTE 1: Cabeçalho Dinâmico */}
           <div className="mb-8 flex items-center justify-between">
-            <div className="flex items-center">
-              <Link href="/clientes">
-                <Button variant="ghost" size="sm" className="mr-4">
-                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                  Voltar
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Dashboard Financeiro: {cliente.nome}
-                </h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Dashboard: {cliente.nome}
+              </h1>
+              {selectedBalancete && (
                 <p className="mt-2 text-gray-600">
-                  Período: {selectedBalancete ? formatPeriod(selectedBalancete) : ''}
+                  Período: {formatMonth(selectedBalancete.mes, selectedBalancete.ano)}
                 </p>
-              </div>
+              )}
             </div>
-
-            {/* Seletor de Balancete */}
-            {balancetes.length > 1 && (
-              <div className="flex items-center space-x-2">
-                <CalendarIcon className="h-5 w-5 text-gray-400" />
+              {balancetes.some(b => b.analysis_id) && (
+              <div className="flex items-center gap-2">
                 <select
                   value={selectedBalanceteId}
-                  onChange={(e) => {
-                    setSelectedBalanceteId(e.target.value);
-                    const balancete = balancetes.find(b => b.id === e.target.value);
-                    setSelectedBalancete(balancete || null);
-                  }}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                  onChange={(e) => setSelectedBalanceteId(e.target.value)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
                 >
-                  {balancetes.map((balancete) => (
-                    <option key={balancete.id} value={balancete.id}>
-                      {formatMonth(balancete.mes, balancete.ano)}
+                  <option value="">-- Selecione --</option>
+                  {balancetes.filter(b => b.analysis_id).map((b) => (
+                    <option key={String(b.analysis_id)} value={String(b.analysis_id)}>
+                      {formatMonth(b.mes, b.ano)}
                     </option>
                   ))}
                 </select>
+
+                <input
+                  type="number"
+                  placeholder="Mês"
+                  min={1}
+                  max={12}
+                  value={filterMonth ?? ''}
+                  onChange={(e) => setFilterMonth(e.target.value ? Number(e.target.value) : null)}
+                  className="rounded-md border border-gray-300 px-2 py-1 w-20"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Ano"
+                  min={1900}
+                  value={filterYear ?? ''}
+                  onChange={(e) => setFilterYear(e.target.value ? Number(e.target.value) : null)}
+                  className="rounded-md border border-gray-300 px-2 py-1 w-24"
+                />
+
+                <Button onClick={() => setActiveAnalysisId(selectedBalanceteId)}>Carregar</Button>
               </div>
             )}
           </div>
 
-          {/* COMPONENTE 2: Cartões de KPIs (Indicadores Chave) */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Resumo do Período</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Cartão 1: Receita Total */}
-              <Card className="border-l-4 border-green-500">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Receita Total</p>
-                      <p className="text-3xl font-bold text-green-600">
-                        {formatCurrency(kpiData?.receita_total || 0)}
-                      </p>
-                    </div>
-                    <ArrowTrendingUpIcon className="h-12 w-12 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Cartão 2: Despesa Total */}
-              <Card className="border-l-4 border-red-500">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Despesa Total</p>
-                      <p className="text-3xl font-bold text-red-600">
-                        {formatCurrency(kpiData?.despesa_total || 0)}
-                      </p>
-                    </div>
-                    <ArrowTrendingDownIcon className="h-12 w-12 text-red-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Cartão 3: Resultado do Período */}
-              <Card className={`border-l-4 ${(kpiData?.resultado_periodo || 0) >= 0 ? 'border-green-500' : 'border-red-500'}`}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Resultado do Período</p>
-                      <p className={`text-3xl font-bold ${(kpiData?.resultado_periodo || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(kpiData?.resultado_periodo || 0)}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {(kpiData?.resultado_periodo || 0) >= 0 ? 'Lucro' : 'Prejuízo'}
-                      </p>
-                    </div>
-                    <BanknotesIcon className={`h-12 w-12 ${(kpiData?.resultado_periodo || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`} />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="border-l-4 border-green-500">
+              <CardContent className="p-6">
+                <p className="text-sm font-medium text-gray-500">Receita Total</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {formatCurrency(kpiData?.receita_total || 0)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-red-500">
+              <CardContent className="p-6">
+                <p className="text-sm font-medium text-gray-500">Despesa Total</p>
+                <p className="text-3xl font-bold text-red-600">
+                  {formatCurrency(kpiData?.despesa_total || 0)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className={`border-l-4 ${(kpiData?.resultado_periodo || 0) >= 0 ? 'border-green-500' : 'border-red-500'}`}>
+              <CardContent className="p-6">
+                <p className="text-sm font-medium text-gray-500">Resultado do Período</p>
+                <p className={`text-3xl font-bold ${(kpiData?.resultado_periodo || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(kpiData?.resultado_periodo || 0)}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* SEÇÃO B: Análise Detalhada de Contas */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            
-            {/* COMPONENTE 3: Gráfico de Composição das Receitas */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-green-700">De Onde Vieram suas Receitas?</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>De Onde Vieram suas Receitas?</CardTitle></CardHeader>
               <CardContent>
-                {receitasComposicao.length > 0 ? (
-                  <div className="space-y-4">
-                    {receitasComposicao.map((receita, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                        <div>
-                          <h4 className="font-medium text-green-800">{receita.subgrupo}</h4>
-                          <p className="text-sm text-green-600">{receita.percentual.toFixed(1)}% do total</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-green-900">
-                            {formatCurrency(receita.valor)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Nenhuma receita encontrada
-                  </div>
-                )}
+                {receitasComposicao.map(r => <div key={r.categoria}>{r.categoria}: {formatCurrency(r.valor)}</div>)}
               </CardContent>
             </Card>
-
-            {/* COMPONENTE 4: Gráfico de Principais Despesas */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-red-700">Para Onde Foi seu Dinheiro?</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Para Onde Foi seu Dinheiro?</CardTitle></CardHeader>
               <CardContent>
-                {despesasPrincipais.length > 0 ? (
-                  <div className="space-y-3">
-                    {despesasPrincipais.map((despesa, index) => (
-                      <div 
-                        key={index} 
-                        className="cursor-pointer hover:bg-red-50 p-3 rounded-lg transition-colors"
-                        onClick={() => setFiltroSubgrupo(filtroSubgrupo === despesa.subgrupo ? '' : despesa.subgrupo)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-red-800 truncate">{despesa.subgrupo}</h4>
-                          <p className="text-lg font-bold text-red-900 ml-4">
-                            {formatCurrency(despesa.valor)}
-                          </p>
-                        </div>
-                        <div className="mt-2">
-                          <div className="w-full bg-red-200 rounded-full h-2">
-                            <div 
-                              className="bg-red-600 h-2 rounded-full" 
-                              style={{ 
-                                width: `${kpiData?.despesa_total ? (despesa.valor / kpiData.despesa_total) * 100 : 0}%` 
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                        {filtroSubgrupo === despesa.subgrupo && (
-                          <p className="text-xs text-red-600 mt-1">
-                            Clique novamente para ver todas as contas
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Nenhuma despesa encontrada
-                  </div>
-                )}
+                {despesasPrincipais.map(d => <div key={d.categoria}>{d.categoria}: {formatCurrency(d.valor)}</div>)}
               </CardContent>
             </Card>
           </div>
 
-          {/* COMPONENTE 5: Tabela de Detalhes de Despesas */}
           <Card>
             <CardHeader>
               <CardTitle>Detalhes por Conta</CardTitle>
-              <div className="flex items-center space-x-4 mt-4">
-                <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <Input
-                    placeholder="Buscar conta..."
-                    value={buscaConta}
-                    onChange={(e) => setBuscaConta(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {filtroSubgrupo && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setFiltroSubgrupo('')}
-                  >
-                    Limpar Filtro: {filtroSubgrupo}
-                  </Button>
-                )}
-              </div>
             </CardHeader>
             <CardContent>
-              {contasFiltered.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Conta
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Categoria
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Valor
-                        </th>
+               <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Conta</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {contasFiltered.map((conta, index) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{conta.conta}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{conta.subgrupo}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">{formatCurrency(conta.valor)}</td>
                       </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {contasFiltered
-                        .sort((a, b) => b.valor - a.valor)
-                        .map((conta, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {conta.conta}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {conta.subgrupo}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right text-red-600">
-                            {formatCurrency(conta.valor)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="mt-4 text-sm text-gray-500 text-center">
-                    Mostrando {contasFiltered.length} conta(s)
-                    {filtroSubgrupo && ` em ${filtroSubgrupo}`}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  {buscaConta || filtroSubgrupo ? 'Nenhuma conta encontrada com os filtros aplicados' : 'Nenhuma conta encontrada'}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* COMPONENTE 6: Nota sobre Evolução Mensal (Visão Futura) */}
-          <Card className="mt-8">
-            <CardContent className="text-center py-8">
-              <div className="text-blue-600 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Evolução Mensal
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Envie mais balancetes para visualizar a evolução de suas receitas e despesas ao longo do tempo.
-              </p>
-              <Link href={`/clientes/${clienteId}/balancetes`}>
-                <Button>Gerenciar Balancetes</Button>
-              </Link>
+                    ))}
+                  </tbody>
+                </table>
             </CardContent>
           </Card>
 

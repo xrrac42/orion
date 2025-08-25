@@ -1,87 +1,115 @@
 # -*- coding: utf-8 -*-
 """
-Módulo responsável pela análise de balancetes usando um LLM (Gemini).
-Converte o texto não estruturado de um PDF em um JSON estruturado e validado.
+Módulo LLM-centric responsável pela análise completa de balancetes.
+A IA agora é responsável por extrair, calcular e estruturar toda a análise.
 """
 import logging
 import json
 from typing import Dict, Any, Optional
 import httpx
+from .config import settings
 
-from .config import settings # Supondo que a configuração esteja neste caminho
-
+# Configuração do logger para este módulo
 logger = logging.getLogger(__name__)
+
+# Para ver os logs detalhados no seu terminal, configure o logging no main.py
+# logging.basicConfig(level=logging.INFO)
 
 class GeminiAnalyzer:
     """
-    Classe que encapsula a lógica para analisar balancetes usando a API do Google Gemini.
+    Classe que encapsula a lógica para analisar, calcular e estruturar dados de balancetes
+    usando a API do Google Gemini.
     """
-
     def __init__(self):
-        """
-        Inicializa o analisador, carregando a chave da API e configurando os endpoints.
-        """
         if not settings.GEMINI_API_KEY:
             raise ValueError("A variável de ambiente GEMINI_API_KEY não está configurada.")
-        
         self.api_key = settings.GEMINI_API_KEY
-        self.model = "gemini-1.5-flash-latest"
+        self.model = "gemini-2.0-flash-latest"
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
-    async def analyze_balancete(self, text_content: str) -> Optional[Dict[str, Any]]:
+    async def analyze_and_structure_balancete(self, text_content: str) -> Optional[Dict[str, Any]]:
         """
-        Orquestra o processo de análise do texto de um balancete.
+        Orquestra o processo completo de análise e estruturação via LLM.
         """
         try:
-            # A única mudança necessária é aqui, no prompt.
-            prompt = self._create_analysis_prompt(text_content)
+            prompt = self._create_super_prompt(text_content)
+            
+            # --- LOGGING ADICIONADO ---
+            logger.info("Iniciando chamada para a API Gemini com prompt de análise completa.")
+            # Para debug, você pode descomentar a linha abaixo para ver o prompt completo
+            # logger.debug(f"Prompt enviado para a IA: {prompt[:500]}...")
+
             api_response_text = await self._call_gemini_api(prompt)
 
             if not api_response_text:
-                logger.error("A chamada para a API do Gemini não retornou conteúdo.")
+                # O erro específico já foi logado em _call_gemini_api
                 return None
+
+            # --- LOGGING ADICIONADO ---
+            logger.info("Resposta recebida da API Gemini. Tentando extrair JSON.")
+            # logger.debug(f"Texto bruto recebido: {api_response_text[:500]}...")
 
             structured_data = self._extract_json_from_response(api_response_text)
 
             if structured_data:
-                logger.info("Análise do balancete via LLM concluída e validada com sucesso.")
+                # --- LOGGING ADICIONADO ---
+                logger.info("JSON extraído e validado com sucesso a partir da resposta da IA.")
                 return structured_data
             else:
                 return None
 
         except Exception as e:
-            logger.exception(f"Erro inesperado durante a análise do balancete: {e}")
+            logger.exception(f"Erro inesperado durante a análise completa do balancete: {e}")
             return None
 
-    def _create_analysis_prompt(self, text_content: str) -> str:
+    def _create_super_prompt(self, text_content: str) -> str:
         """
-        Cria um prompt de alta qualidade, projetado para extrair dados financeiros com precisão.
+        Cria um prompt detalhado que instrui a IA a realizar a análise completa,
+        incluindo cálculos e estruturação final dos dados.
         """
-        # --- PROMPT CORRIGIDO E MAIS RESTRITO ---
-        # Esta nova versão força a IA a olhar apenas para as colunas corretas.
         prompt = f"""
-Analise o texto de um balancete contábil brasileiro. Sua tarefa é retornar um objeto JSON.
+Você é um assistente de contabilidade especialista em analisar balancetes brasileiros. Sua tarefa é analisar o texto de um balancete, extrair os dados financeiros, realizar os cálculos necessários e retornar um único objeto JSON estruturado.
 
-INSTRUÇÕES CRÍTICAS E OBRIGATÓRIAS:
-1.  **FOCO NAS COLUNAS CERTAS**: Para os valores `valor_debito` e `valor_credito`, você deve usar APENAS os números das colunas "Débito" e "Crédito" do período. IGNORE COMPLETAMENTE as colunas "Saldo Anterior" e "Saldo Atual". Esta é a regra mais importante.
-2.  **DATAS DO PERÍODO**: Encontre a data inicial e final do relatório, que geralmente estão no cabeçalho (ex: 'de 01/01/2024 até 31/12/2024'). Retorne no formato AAAA-MM-DD.
-3.  **CONTAS DE RESULTADO**: Extraia APENAS as contas dos grupos "RECEITAS" e "CUSTOS E DESPESAS". Ignore totalmente "ATIVO", "PASSIVO" e "PATRIMONIO LIQUIDO".
-4.  **IDENTIFICAR CONTAS VÁLIDAS**: Uma conta válida para extração é uma linha que representa uma despesa ou receita final (ex: "ALUGUEL", "SERVICOS PRESTADOS") e que POSSUI um valor numérico maior que zero nas colunas "Débito" ou "Crédito" do período. Linhas de subtotal de grupo devem ser ignoradas.
-5.  **HIERARQUIA**: Para cada conta válida, capture o `grupo_principal` (ex: "CUSTOS E DESPESAS") e o `subgrupo_1` (ex: "DESPESAS OPERACIONAIS") ao qual ela pertence. Se não houver subgrupo, retorne `null`.
-6.  **FORMATO DOS NÚMEROS**: Converta todos os valores monetários para o formato float (ex: "1.234,56" se torna 1234.56).
+TAREFAS A SEREM EXECUTADAS:
+1.  **Extração de Metadados**:
+    * `cliente`: O nome completo da empresa cliente.
+    * `data_inicial` e `data_final`: As datas de início e fim do período do relatório (formato AAAA-MM-DD).
+
+2.  **Extração de Lançamentos**:
+    * Crie uma lista chamada `financial_entries`.
+    * Para cada conta de **RESULTADO** ("RECEITAS", "CUSTOS E DESPESAS") que tiver movimentação no período, adicione um objeto a esta lista.
+    * Cada objeto deve conter: `main_group`, `subgroup_1`, `specific_account`, `movement_type` ('Receita' ou 'Despesa'), e `period_value` (o valor numérico da movimentação).
+    * **REGRA CRÍTICA**: Use o valor da coluna "Crédito" para Receitas e o valor da coluna "Débito" para Despesas. Ignore as colunas de saldo.
+
+3.  **Cálculos Agregados**:
+    * `total_receitas`: A soma de `period_value` de todos os lançamentos onde `movement_type` é 'Receita'.
+    * `total_despesas`: A soma de `period_value` de todos os lançamentos onde `movement_type` é 'Despesa'.
+    * `lucro_bruto`: O resultado de `total_receitas` - `total_despesas`.
 
 FORMATO DE SAÍDA OBRIGATÓRIO (APENAS O JSON):
+Retorne um único objeto JSON com a seguinte estrutura. Preencha todos os campos com os dados extraídos e calculados.
+
 {{
-  "cliente": "Nome da Empresa Extraído",
+  "cliente": "Nome da Empresa",
   "data_inicial": "AAAA-MM-DD",
   "data_final": "AAAA-MM-DD",
-  "contas": [
+  "total_receitas": 1475580.28,
+  "total_despesas": 1420776.98,
+  "lucro_bruto": 54803.30,
+  "financial_entries": [
     {{
-      "grupo_principal": "CUSTOS E DESPESAS",
-      "subgrupo_1": "DESPESAS OPERACIONAIS",
-      "conta_especifica": "ALUGUEL",
-      "valor_debito": 6235.12,
-      "valor_credito": 0.0
+      "main_group": "RECEITAS",
+      "subgroup_1": "RECEITAS OPERACIONAIS",
+      "specific_account": "SERVICOS PRESTADOS",
+      "movement_type": "Receita",
+      "period_value": 1475579.70
+    }},
+    {{
+      "main_group": "CUSTOS E DESPESAS",
+      "subgroup_1": "CUSTOS OPERACIONAIS",
+      "specific_account": "CUSTO DOS SERVICOS",
+      "movement_type": "Despesa",
+      "period_value": 10401.25
     }}
   ]
 }}
@@ -94,16 +122,14 @@ Texto do balancete para análise:
         return prompt
 
     async def _call_gemini_api(self, prompt: str) -> Optional[str]:
-        """
-        Realiza a chamada HTTP assíncrona para a API do Gemini.
-        """
+        # (O restante do código de _call_gemini_api e _extract_json_from_response permanece o mesmo da versão anterior)
         url = f"{self.base_url}/models/{self.model}:generateContent?key={self.api_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
                 "responseMimeType": "application/json",
-                "temperature": 0.0, # Temperatura zero para máxima precisão
+                "temperature": 0.0,
                 "topK": 1,
             },
             "safetySettings": [
@@ -113,9 +139,8 @@ Texto do balancete para análise:
                 {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
         }
-        
         try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 result = response.json()
@@ -133,9 +158,6 @@ Texto do balancete para análise:
             return None
 
     def _extract_json_from_response(self, response_text: str) -> Optional[Dict[str, Any]]:
-        """
-        Extrai um objeto JSON de uma string, limpando possíveis formatações de markdown.
-        """
         try:
             cleaned_text = response_text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
             return json.loads(cleaned_text)

@@ -168,10 +168,51 @@ async def process_balancete_pdf(balancete_id: int):
         
         # Criar entradas financeiras detalhadas
         entries = []
+        analysis_id = None
+        try:
+            bal_resp = supabase.table('balancetes').select('analysis_id').eq('id', balancete_id).single().execute()
+            if bal_resp and getattr(bal_resp, 'data', None):
+                analysis_id = bal_resp.data.get('analysis_id')
+        except Exception:
+            analysis_id = None
+
+        if not analysis_id:
+            client_name = None
+            try:
+                cli = supabase.table('clients').select('nome').eq('id', balancete['client_id']).single().execute()
+                if cli and getattr(cli, 'data', None):
+                    client_name = cli.data.get('nome')
+            except Exception:
+                client_name = None
+
+            analysis_payload = {
+                'client_id': balancete['client_id'],
+                'report_date': f"{balancete['ano']}-{balancete['mes']:02d}-01",
+                'reference_month': int(balancete['mes']),
+                'reference_year': int(balancete['ano']),
+                'client_name': client_name or balancete['client_id'],
+                'source_file_path': file_path,
+                'source_file_name': file_upload.get('file_name'),
+                'status': 'completed',
+                'total_receitas': financial_data.get('total_receitas', 0),
+                'total_despesas': financial_data.get('total_despesas', 0),
+                'total_entries': 0
+            }
+            try:
+                create_analysis_resp = supabase.table('monthly_analyses').insert(analysis_payload).execute()
+                if create_analysis_resp and getattr(create_analysis_resp, 'data', None) and len(create_analysis_resp.data) > 0:
+                    analysis_id = create_analysis_resp.data[0].get('id')
+                    try:
+                        supabase.table('balancetes').update({'analysis_id': analysis_id}).eq('id', balancete_id).execute()
+                    except Exception:
+                        pass
+            except Exception:
+                analysis_id = None
         
         # Receitas
-        for i, receita in enumerate(financial_data['receitas_detalhadas']):
+        for i, receita in enumerate(financial_data.get('receitas_detalhadas', [])):
             entries.append({
+                'analysis_id': analysis_id,
                 'client_id': balancete['client_id'],
                 'report_date': f"{balancete['ano']}-{balancete['mes']:02d}-01",
                 'main_group': 'RECEITAS',
@@ -181,8 +222,9 @@ async def process_balancete_pdf(balancete_id: int):
             })
         
         # Despesas
-        for i, despesa in enumerate(financial_data['despesas_detalhadas']):
+        for i, despesa in enumerate(financial_data.get('despesas_detalhadas', [])):
             entries.append({
+                'analysis_id': analysis_id,
                 'client_id': balancete['client_id'],
                 'report_date': f"{balancete['ano']}-{balancete['mes']:02d}-01",
                 'main_group': 'CUSTOS E DESPESAS',
@@ -192,8 +234,9 @@ async def process_balancete_pdf(balancete_id: int):
             })
         
         # Despesas por categoria
-        for categoria, valor in financial_data['categorias'].items():
+        for categoria, valor in financial_data.get('categorias', {}).items():
             entries.append({
+                'analysis_id': analysis_id,
                 'client_id': balancete['client_id'],
                 'report_date': f"{balancete['ano']}-{balancete['mes']:02d}-01",
                 'main_group': 'CUSTOS E DESPESAS',
