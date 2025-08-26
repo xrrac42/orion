@@ -4,9 +4,9 @@ Módulo central que orquestra o processo de análise de um PDF.
 Agora simplificado para confiar na análise completa do LLM.
 """
 import logging
-from .pdf_processor import extract_structured_text_from_pdf
-from .llm_analyzer import GeminiAnalyzer
-from .database import create_analysis_and_entries # Nova função de banco de dados
+from pdf_processor import extract_structured_text_from_pdf
+from llm_analyzer import GeminiAnalyzer
+from database import create_analysis_and_entries # Nova função de banco de dados
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class CoreProcessor:
     def __init__(self):
         self.llm_analyzer = GeminiAnalyzer()
 
-    async def process_pdf_file(self, file_content: bytes, client_id: str, file_upload_id: str):
+    async def process_pdf_file(self, file_content: bytes, client_id: str, file_upload_id: str, file_name: str = None):
         """
         Processa um arquivo PDF do início ao fim usando a abordagem LLM-centric.
         """
@@ -31,6 +31,9 @@ class CoreProcessor:
 
             # 3. Salva a análise e suas entradas no banco de dados de uma vez
             # Esta nova função em database.py usará uma transação para garantir a consistência
+            # Propagar file_name para a função de persistência
+            if file_name:
+                analysis_data["file_name"] = file_name
             new_analysis = await create_analysis_and_entries(
                 client_id=client_id,
                 file_upload_id=file_upload_id,

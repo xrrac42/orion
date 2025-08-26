@@ -1,283 +1,144 @@
 from fastapi import APIRouter, HTTPException, status, Query
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
 from database import get_supabase_client
 import logging
 import traceback
+from collections import defaultdict
+from datetime import datetime
 
 router = APIRouter(
+    # O prefixo /api/dashboard é definido no main.py
     tags=["Dashboard"]
 )
+logger = logging.getLogger(__name__)
 
+# --- Modelos Pydantic para a resposta ---
+class KpiResponse(BaseModel):
+    receita_total: float
+    despesa_total: float
+    resultado_periodo: float
 
-def _resolve_analysis_id(supabase, analysis_id: Optional[int], balancete_id: Optional[int]) -> int:
-    """Resolve an analysis id from either analysis_id or balancete_id. Raises HTTPException on error."""
-    if analysis_id is not None:
-        resp = supabase.table('monthly_analyses').select('*').eq('id', analysis_id).execute()
-        if resp and getattr(resp, 'data', None):
-            return int(resp.data[0]['id'])
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"analysis_id {analysis_id} não encontrado")
+class ChartDataResponse(BaseModel):
+    categoria: str
+    valor: float
 
-    if balancete_id is not None:
-        bal = supabase.table('balancetes').select('analysis_id').eq('id', balancete_id).single().execute()
-        if bal and getattr(bal, 'data', None) and bal.data.get('analysis_id'):
-            return int(bal.data.get('analysis_id'))
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"balancete_id {balancete_id} não vinculado a uma analysis")
+class DashboardResponse(BaseModel):
+    cliente: str
+    periodo: Optional[str] = None
+    kpis: KpiResponse
+    grafico_despesas: List[ChartDataResponse]
+    grafico_receitas: List[ChartDataResponse]
 
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Forneça analysis_id ou balancete_id")
-
-
-def _to_float(value) -> float:
-    """Try to convert various value formats to float. Handles strings with commas/dots."""
+# --- Funções Auxiliares ---
+def _to_float(value: any) -> float:
+    """Converte um valor para float de forma segura."""
+    if value is None:
+        return 0.0
     try:
-        if value is None:
-            return 0.0
-        if isinstance(value, (int, float)):
-            return float(value)
+        # Trata strings com vírgula decimal
         if isinstance(value, str):
-            # remove thousands separator and normalize decimal comma
-            v = value.replace('.', '').replace(',', '.')
-            return float(v)
+            return float(value.replace('.', '').replace(',', '.'))
         return float(value)
-    except Exception:
+    except (ValueError, TypeError):
         return 0.0
 
-
-@router.get("/")
-def get_dashboard(
-    analysis_id: Optional[int] = Query(None),
-    balancete_id: Optional[int] = Query(None),
-    month: Optional[int] = Query(None, ge=1, le=12),
-    year: Optional[int] = Query(None, ge=1900),
-    limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
+# --- Rota Principal e Única do Dashboard ---
+@router.get("/", response_model=DashboardResponse)
+def get_dashboard_data(
+    analysis_id: int = Query(..., description="O ID da análise mensal a ser consultada"),
+    client_id: str = Query(..., description="O ID do cliente para validação")
 ):
-    """Query-based dashboard endpoint. Accepts analysis_id or balancete_id and optional month/year filters.
-    Returns a single payload with analysis meta, KPIs, charts and paginated entries."""
+    """
+    Endpoint principal do dashboard.
+    Calcula todos os KPIs e dados para gráficos a partir da tabela 'financial_entries',
+    usando o 'analysis_id' como a única fonte da verdade.
+    """
+    supabase = get_supabase_client()
     try:
-        supabase = get_supabase_client()
+        # 1. Buscar os metadados da análise para validação e informações de cabeçalho
+        logger.info(f"Buscando análise com ID: {analysis_id} para o cliente: {client_id}")
+        analysis_resp = supabase.table('monthly_analyses')\
+            .select('id, client_id, client_name, report_date')\
+            .eq('id', analysis_id)\
+            .eq('client_id', client_id)\
+            .single().execute()
 
-        numeric_analysis_id = _resolve_analysis_id(supabase, analysis_id, balancete_id)
-
-        # Fetch analysis/meta
-        analysis_resp = supabase.table('monthly_analyses').select('*').eq('id', numeric_analysis_id).single().execute()
-        if not analysis_resp or not getattr(analysis_resp, 'data', None):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Análise não encontrada")
+        if not hasattr(analysis_resp, 'data') or not analysis_resp.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Análise com ID {analysis_id} não encontrada para este cliente.")
+        
         analysis = analysis_resp.data
+        logger.info(f"Análise encontrada: {analysis}")
 
-        # Fetch entries linked to this analysis
-        entries_resp = supabase.table('financial_entries').select('*').eq('analysis_id', numeric_analysis_id).execute()
+        # 2. Buscar TODOS os lançamentos financeiros ('financial_entries') para esta análise
+        entries_resp = supabase.table('financial_entries')\
+            .select('movement_type, period_value, subgroup_1')\
+            .eq('analysis_id', analysis_id)\
+            .execute()
+
+        if not hasattr(entries_resp, 'data'):
+             raise HTTPException(status_code=500, detail="Erro ao buscar lançamentos financeiros.")
+
         entries = entries_resp.data or []
-        logging.getLogger(__name__).info(f"Dashboard query: found {len(entries)} financial_entries for analysis {numeric_analysis_id}")
+        logger.info(f"Encontrados {len(entries)} lançamentos financeiros para a análise {analysis_id}")
 
-        # Optional filter by month/year using report_date if provided
-        if month or year:
-            from datetime import datetime
-            filtered = []
-            for e in entries:
-                rd = e.get('report_date')
-                if not rd:
-                    continue
-                try:
-                    dt = datetime.fromisoformat(rd)
-                except Exception:
-                    # skip malformed dates
-                    continue
-                if month and dt.month != month:
-                    continue
-                if year and dt.year != year:
-                    continue
-                filtered.append(e)
-            entries = filtered
-
-        total = len(entries)
-        paged = entries[offset: offset + limit]
-
-        # Aggregations
-        receita_total = sum(_to_float(e.get('period_value')) for e in entries if (str(e.get('movement_type') or '').lower() == 'receita'))
-        despesa_total = sum(_to_float(e.get('period_value')) for e in entries if (str(e.get('movement_type') or '').lower() == 'despesa'))
-        kpis = {
-            'receita_total': float(receita_total),
-            'despesa_total': float(despesa_total),
-            'resultado_periodo': float(receita_total - despesa_total)
-        }
-
-        from collections import defaultdict
-        despesas_map = defaultdict(float)
+        # 3. Calcular KPIs e agregar dados para os gráficos em Python
+        receita_total = 0.0
+        despesa_total = 0.0
         receitas_map = defaultdict(float)
-        for e in entries:
-            mtype = str(e.get('movement_type') or '').lower()
-            cat = e.get('subgroup_1') or ('Receita' if mtype == 'receita' else 'Outras Despesas')
-            val = _to_float(e.get('period_value'))
-            if mtype == 'despesa':
-                despesas_map[cat] += val
-            else:
-                receitas_map[cat] += val
+        despesas_map = defaultdict(float)
 
-        despesas_por_categoria = sorted(
-            [{'categoria': k, 'valor': v} for k, v in despesas_map.items()],
-            key=lambda x: x['valor'], reverse=True
-        )[:10]
+        for entry in entries:
+            valor = _to_float(entry.get('period_value'))
+            categoria = entry.get('subgroup_1') or 'Não categorizado'
+            
+            if entry.get('movement_type') == 'Receita':
+                receita_total += valor
+                receitas_map[categoria] += valor
+            elif entry.get('movement_type') == 'Despesa':
+                despesa_total += valor
+                despesas_map[categoria] += valor
+        
+        kpis = {
+            'receita_total': receita_total,
+            'despesa_total': despesa_total,
+            'resultado_periodo': receita_total - despesa_total
+        }
+        logger.info(f"KPIs calculados: {kpis}")
 
-        receitas_por_categoria = sorted(
+        # 4. Formatar dados para os gráficos
+        grafico_receitas = sorted(
             [{'categoria': k, 'valor': v} for k, v in receitas_map.items()],
             key=lambda x: x['valor'], reverse=True
         )
+        
+        grafico_despesas = sorted(
+            [{'categoria': k, 'valor': v} for k, v in despesas_map.items()],
+            key=lambda x: x['valor'], reverse=True
+        )[:10] # Limita a 10 principais categorias de despesa
+
+        # 5. Montar e retornar a resposta final
+        periodo_formatado = None
+        if analysis.get('report_date'):
+            try:
+                periodo_formatado = datetime.fromisoformat(analysis['report_date']).strftime('%d/%m/%Y')
+            except (ValueError, TypeError):
+                periodo_formatado = analysis['report_date']
 
         return {
-            'analysis': analysis,
+            'cliente': analysis.get('client_name') or client_id,
+            'periodo': periodo_formatado,
             'kpis': kpis,
-            'grafico_despesas': despesas_por_categoria,
-            'grafico_receitas': receitas_por_categoria,
-            'entries': paged,
-            'meta': {'limit': limit, 'offset': offset, 'total': total}
+            'grafico_despesas': grafico_despesas,
+            'grafico_receitas': grafico_receitas,
         }
+
     except HTTPException:
         raise
     except Exception as e:
-        logger = logging.getLogger(__name__)
         tb = traceback.format_exc()
-        logger.exception("Erro ao gerar dashboard via query: %s\n%s", str(e), tb)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ocorreu um erro interno: {str(e)}")
-
-@router.get("/{analysis_id}")
-def get_dashboard_data(analysis_id: str):
-    """
-    Retorna os dados agregados para um balancete específico (analysis_id)
-    para popular o dashboard do cliente.
-    """
-    try:
-        # Use Supabase client to fetch analysis and related financial entries
-        supabase = get_supabase_client()
-
-        # 1. Resolve analysis_id: accept either numeric analysis id or a client UUID
-        numeric_analysis_id = None
-        analysis = None
-
-        # If the path param looks like a UUID (contains '-') treat it as a client_id
-        if isinstance(analysis_id, str) and ('-' in analysis_id or len(analysis_id) > 16):
-            analyses_resp = supabase.table('monthly_analyses')\
-                .select('*')\
-                .eq('client_id', analysis_id)\
-                .order('reference_year', desc=True)\
-                .order('reference_month', desc=True)\
-                .limit(1)\
-                .execute()
-            if not analyses_resp.data:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Nenhuma análise encontrada para o cliente {analysis_id}"
-                )
-            analysis = analyses_resp.data[0]
-            numeric_analysis_id = int(analysis['id'])
-        else:
-            # Try to use the provided value as an integer analysis id
-            try:
-                numeric_analysis_id = int(analysis_id)
-            except Exception:
-                # Last resort: query by id as-is
-                analyses_resp = supabase.table('monthly_analyses').select('*').eq('id', analysis_id).execute()
-                if not analyses_resp.data:
-                    # Try to resolve the provided id as a balancete id that references an analysis
-                    try:
-                        bal_resp = supabase.table('balancetes').select('analysis_id').eq('id', analysis_id).single().execute()
-                        if bal_resp and getattr(bal_resp, 'data', None) and bal_resp.data.get('analysis_id'):
-                            resolved = bal_resp.data.get('analysis_id')
-                            analyses_resp = supabase.table('monthly_analyses').select('*').eq('id', resolved).execute()
-                            if analyses_resp and analyses_resp.data:
-                                analysis = analyses_resp.data[0]
-                                numeric_analysis_id = int(analysis['id'])
-                            else:
-                                raise HTTPException(
-                                    status_code=status.HTTP_404_NOT_FOUND,
-                                    detail=f"Nenhuma análise encontrada associada ao balancete {analysis_id}"
-                                )
-                        else:
-                            raise HTTPException(
-                                status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f"Nenhuma análise encontrada com o ID {analysis_id}"
-                            )
-                    except HTTPException:
-                        raise
-                    except Exception:
-                        raise HTTPException(
-                            status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Nenhuma análise encontrada com o ID {analysis_id}"
-                        )
-                else:
-                    analysis = analyses_resp.data[0]
-                    numeric_analysis_id = int(analysis['id'])
-
-        # If we haven't loaded analysis yet, fetch it by numeric id
-        if analysis is None:
-            analyses_resp = supabase.table('monthly_analyses').select('*').eq('id', numeric_analysis_id).execute()
-            if not analyses_resp.data:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Nenhuma análise encontrada com o ID {analysis_id}"
-                )
-            analysis = analyses_resp.data[0]
-
-        # 2. Busca lançamentos financeiros relacionados (financial_entries)
-        entries_resp = supabase.table('financial_entries').select('*').eq('analysis_id', numeric_analysis_id).execute()
-        entries = entries_resp.data or []
-
-        # 3. Calcula KPIs em Python (normalizando tipos e valores)
-        receita_total = sum(_to_float(e.get('period_value')) for e in entries if (str(e.get('movement_type') or '').lower() == 'receita'))
-        despesa_total = sum(_to_float(e.get('period_value')) for e in entries if (str(e.get('movement_type') or '').lower() == 'despesa'))
-        kpis = {
-            'receita_total': float(receita_total),
-            'despesa_total': float(despesa_total),
-            'resultado_periodo': float(receita_total - despesa_total)
-        }
-
-        # 4. Agrupa por categoria
-        from collections import defaultdict
-        despesas_map = defaultdict(float)
-        receitas_map = defaultdict(float)
-        for e in entries:
-            mtype = str(e.get('movement_type') or '').lower()
-            cat = e.get('subgroup_1') or ( 'Receita' if mtype == 'receita' else 'Outras Despesas')
-            val = _to_float(e.get('period_value'))
-            if mtype == 'despesa':
-                despesas_map[cat] += val
-            else:
-                receitas_map[cat] += val
-
-        despesas_por_categoria = sorted(
-            [{'categoria': k, 'valor': v} for k, v in despesas_map.items()],
-            key=lambda x: x['valor'], reverse=True
-        )[:10]
-
-        receitas_por_categoria = sorted(
-            [{'categoria': k, 'valor': v} for k, v in receitas_map.items()],
-            key=lambda x: x['valor'], reverse=True
-        )
-
-        # 5. Monta resposta
-        cliente_name = analysis.get('client_name') or analysis.get('client_id')
-        periodo = analysis.get('report_date')
-        # If periodo exists as ISO string, format it; otherwise leave as-is
-        try:
-            from datetime import datetime
-            periodo_formatted = datetime.fromisoformat(periodo).strftime('%d/%m/%Y') if periodo else None
-        except Exception:
-            periodo_formatted = periodo
-
-        return {
-            'cliente': cliente_name,
-            'periodo': periodo_formatted,
-            'kpis': kpis,
-            'grafico_despesas': despesas_por_categoria,
-            'grafico_receitas': receitas_por_categoria
-        }
-
-    except Exception as e:
-        # Log full traceback for debugging in development
-        logger = logging.getLogger(__name__)
-        tb = traceback.format_exc()
-        logger.exception("Erro ao gerar dashboard para analysis_id=%s:\n%s", analysis_id, tb)
-        # Return the exception message in the response detail to surface the real error
+        logger.exception("Erro ao gerar dashboard: %s\n%s", str(e), tb)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ocorreu um erro interno ao processar os dados do dashboard: {str(e)}"
+            detail=f"Ocorreu um erro interno: {str(e)}"
         )

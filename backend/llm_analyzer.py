@@ -7,7 +7,7 @@ import logging
 import json
 from typing import Dict, Any, Optional
 import httpx
-from .config import settings
+from config import settings
 
 # Configuração do logger para este módulo
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class GeminiAnalyzer:
         if not settings.GEMINI_API_KEY:
             raise ValueError("A variável de ambiente GEMINI_API_KEY não está configurada.")
         self.api_key = settings.GEMINI_API_KEY
-        self.model = "gemini-2.0-flash-latest"
+        self.model = "gemini-1.5-pro"
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
     async def analyze_and_structure_balancete(self, text_content: str) -> Optional[Dict[str, Any]]:
@@ -54,6 +54,30 @@ class GeminiAnalyzer:
             if structured_data:
                 # --- LOGGING ADICIONADO ---
                 logger.info("JSON extraído e validado com sucesso a partir da resposta da IA.")
+                # Normalizar possíveis campos de lançamentos financeiros
+                entries = None
+                # chaves candidatas no topo
+                for candidate in ("financial_entries", "entries", "financialEntries", "data"):
+                    if candidate in structured_data:
+                        val = structured_data.get(candidate)
+                        if isinstance(val, list):
+                            entries = val
+                            break
+                        if isinstance(val, dict):
+                            # procurar dentro deste dict
+                            for inner in ("financial_entries", "entries", "financialEntries"):
+                                if inner in val and isinstance(val[inner], list):
+                                    entries = val[inner]
+                                    break
+                    if entries:
+                        break
+
+                if entries is not None:
+                    structured_data["financial_entries"] = entries
+                    logger.info(f"LLM -> detected financial_entries with {len(entries)} items")
+                else:
+                    logger.warning(f"LLM -> no financial_entries key found. available keys: {list(structured_data.keys())}")
+
                 return structured_data
             else:
                 return None
