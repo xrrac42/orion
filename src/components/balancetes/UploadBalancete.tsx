@@ -30,17 +30,20 @@ export default function UploadBalancete({ clientId, onUpload }: UploadBalanceteP
     formData.append('client_id', clientId);
     formData.append('ano', ano);
     formData.append('mes', mes);
-    // Enviar para o backend
-    const res = await fetch('http://localhost:8000/api/balancetes', {
+    // Enviar para o backend (rota atualizada /upload)
+    const res = await fetch('http://localhost:8000/api/balancetes/upload', {
       method: 'POST',
       body: formData
     });
     if (!res.ok) {
-      setMessage('Erro ao registrar balancete no backend');
+      let err = 'Erro ao registrar balancete no backend';
+      try { const j = await res.json(); if (j && j.detail) err = j.detail; } catch(_) {}
+      setMessage(err);
       setUploading(false);
       return;
     }
-    setMessage('Processando balancete...');
+    const json = await res.json();
+    setMessage(json.message || 'Processando balancete...');
     if (onUpload) onUpload();
     setUploading(false);
     setFile(null);
