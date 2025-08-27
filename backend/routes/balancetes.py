@@ -30,84 +30,50 @@ class BalanceteUploadResponse(BaseModel):
 @router.post("/upload", response_model=BalanceteUploadResponse)
 async def upload_balancete(
     client_id: str = Form(...),
-    ano: int = Form(...),
-    mes: int = Form(...),
     file: UploadFile = File(...)
 ):
     """
-    Salva o PDF no bucket, recupera o conteúdo salvo e então dispara a análise.
+    Recebe um PDF, salva no storage e DISPARA o processo de análise com o CoreProcessor.
     """
     supabase = get_supabase_client()
-    
-    # --- LÓGICA DE RENOMEAR O ARQUIVO ---
-    ano_curto = str(ano)[-2:]
-    safe_original_name = "".join(c for c in file.filename if c.isalnum() or c in ('.', '_')).rstrip()
-    new_file_name = f"{mes:02d}-{ano_curto}-{safe_original_name}"
-    file_path = f"{client_id}/{new_file_name}"
-
-    logger.info(f"Iniciando upload para o cliente: {client_id}")
-    logger.info(f"Arquivo original: '{file.filename}', será salvo como: '{file_path}'")
-
-    file_upload_id = None # Inicializa para o bloco de erro
+    logger.info(f"Recebido upload de balancete para o cliente: {client_id}")
     try:
-        # 1. LER E SALVAR O ARQUIVO NO BUCKET
-        file_bytes_to_upload = await file.read()
-        if not file_bytes_to_upload:
+        file_bytes = await file.read()
+        if not file_bytes:
             raise HTTPException(status_code=400, detail="Arquivo PDF está vazio.")
-            
-        supabase.storage.from_('balancetes').upload(
-            path=file_path, 
-            file=file_bytes_to_upload, 
-            file_options={'content-type': file.content_type, 'upsert': 'true'} # Upsert true para facilitar testes
-        )
-        logger.info(f"Arquivo inserido com sucesso no bucket: {file_path}")
 
-        # 2. CRIAR REGISTRO DE CONTROLE NA TABELA 'file_uploads'
+        file_path = f"public/{client_id}/{file.filename}"
+        supabase.storage.from_('balancetes').upload(file_path, file_bytes, {'content-type': file.content_type, 'upsert': 'true'})
+        
         upload_insert_resp = supabase.table('file_uploads').insert({
             'client_id': client_id,
-            'file_name': new_file_name,
+            'file_name': file.filename,
             'file_path': file_path,
-            'status': 'processing' # Status inicial válido conforme o schema do banco
+            'status': 'processing'
         }).execute()
         
         if not hasattr(upload_insert_resp, 'data') or not upload_insert_resp.data:
-            raise HTTPException(status_code=500, detail="Falha ao criar registro de controle do upload.")
+            raise HTTPException(status_code=500, detail="Falha ao criar registro de upload.")
             
         file_upload_id = upload_insert_resp.data[0]['id']
-        logger.info(f"Registro de upload criado com ID: {file_upload_id}. Status: 'processing'")
-
-        # 3. RECUPERAR O ARQUIVO DO BUCKET PARA ANÁLISE
-        logger.info(f"Recuperando arquivo '{file_path}' do bucket para análise...")
         
-        response = supabase.storage.from_('balancetes').download(path=file_path)
-        file_content_from_bucket = response
-        
-        if not file_content_from_bucket:
-             raise ValueError(f"Não foi possível recuperar o arquivo {file_path} do bucket para análise.")
-        
-        logger.info("Arquivo recuperado do bucket com sucesso. Disparando o CoreProcessor...")
-        
-        # 4. ENVIAR CONTEÚDO RECUPERADO PARA ANÁLISE
+        # --- PONTO CRÍTICO DA CORREÇÃO ---
+        # Garantindo que estamos chamando o CoreProcessor e passando todos os dados necessários
         processor = CoreProcessor()
         result = await processor.process_pdf_file(
-            file_content=file_content_from_bucket,
+            file_content=file_bytes,
             client_id=client_id,
             file_upload_id=file_upload_id,
-            file_name=new_file_name
+            file_name=file.filename  # Passando o nome do arquivo
         )
 
-        # 5. TRATAR O RESULTADO DA ANÁLISE
         if result.get("status") == "error":
             supabase.table('file_uploads').update({'status': 'failed', 'error_message': result.get('message')}).eq('id', file_upload_id).execute()
-            raise HTTPException(status_code=500, detail=f"Erro no processamento da IA: {result.get('message')}")
+            raise HTTPException(status_code=500, detail=f"Erro no processamento: {result.get('message')}")
 
         analysis_id = result.get("analysis_id")
         if not analysis_id:
-            raise HTTPException(status_code=500, detail="Processamento da IA não retornou um ID de análise.")
-
-        logger.info(f"Processo concluído com sucesso. Nova analysis_id: {analysis_id}")
-        
-        supabase.table('file_uploads').update({'analysis_id': analysis_id, 'status': 'completed'}).eq('id', file_upload_id).execute()
+            raise HTTPException(status_code=500, detail="Processamento não retornou um ID de análise.")
 
         return {
             "message": "Balancete enviado e processado com sucesso!",
@@ -115,14 +81,15 @@ async def upload_balancete(
             "analysis_id": analysis_id
         }
 
+    except Exception as e:
+        logger.exception(f"Erro catastrófico no endpoint de upload: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno do servidor durante o upload.")
+
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Erro catastrófico no endpoint de upload: {e}")
-        if file_upload_id:
-            supabase.table('file_uploads').update({'status': 'failed', 'error_message': str(e)}).eq('id', file_upload_id).execute()
-        raise HTTPException(status_code=500, detail=f"Erro interno do servidor: {e}")
-
+        raise HTTPException(status_code=500, detail="Erro interno do servidor durante o upload.")
 
 # O resto do arquivo (get_balancetes_cliente, get_upload_status) permanece o mesmo
 @router.get("/cliente/{client_id}", response_model=List[BalanceteResponse])

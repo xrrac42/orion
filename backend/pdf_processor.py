@@ -32,7 +32,7 @@ class CoreProcessor:
 
             # 2. IA analisa, calcula e estrutura TUDO
             logger.info("Enviando texto para análise da IA...")
-            analysis_data = await self.llm_analyzer.analyze_and_structure_balancete(text_content)
+            analysis_data = await self.llm_analyzer.extract_data_from_text(text_content)
             if not analysis_data:
                 raise ValueError("A análise completa com IA falhou ou retornou dados vazios.")
 

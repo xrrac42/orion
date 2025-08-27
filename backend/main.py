@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import logging # Importa a biblioteca de logging
 from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries, pdf_processor
+from routes import financial_entries
 from routers import monthly_analyses
 
 # --- CONFIGURAÇÃO DE LOGGING ---
@@ -45,6 +46,8 @@ app.include_router(pdf_processor.router, prefix="/api/pdf", tags=["PDF Processin
 app.include_router(relatorios.router, prefix="/api/relatorios", tags=["Relatórios"])
 app.include_router(financial_entries.router, prefix="/api/financial-entries", tags=["FinancialEntries"])
 app.include_router(monthly_analyses.router, tags=["Monthly Analyses"])
+app.include_router(financial_entries.router)
+
 
 @app.get("/")
 async def root():

@@ -2,6 +2,8 @@
 
 import { ReactNode, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import Logo from '@/assets/logo.png';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { 
@@ -107,11 +109,14 @@ function SidebarContent({
             "flex items-center transition-all duration-300",
             collapsed ? "justify-center" : ""
           )}>
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">O</span>
+            <div className={cn(
+          'relative rounded-lg flex items-center justify-center overflow-hidden',
+          collapsed ? 'w-8 h-8' : 'w-40 h-40'
+            )}>
+            <Image src={Logo} alt="Orion Logo" fill className="object-contain" />
             </div>
             {!collapsed && (
-              <h1 className="ml-3 text-xl font-semibold text-black">Orion</h1>
+              <h1 className="ml-3 text-xl font-semibold text-black"></h1>
             )}
           </div>
           {onToggleCollapse && (
