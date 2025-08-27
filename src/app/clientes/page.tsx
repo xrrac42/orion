@@ -26,6 +26,45 @@ export default function ClientesPage() {
     email: '',
     telefone: ''
   })
+  const [cnpjError, setCnpjError] = useState<string | null>(null)
+
+  function isValidCNPJ(input: string) {
+    if (!input) return false
+    const digits = input.replace(/\D/g, '')
+    if (digits.length !== 14) return false
+    if (/^(\d)\1*$/.test(digits)) return false
+
+    const calc = (base: string, weights: number[]) => {
+      let sum = 0
+      for (let i = 0; i < base.length; i++) {
+        sum += parseInt(base[i], 10) * weights[i]
+      }
+      const r = sum % 11
+      return r < 2 ? 0 : 11 - r
+    }
+
+    const base12 = digits.slice(0, 12)
+    const d1 = calc(base12, [5,4,3,2,9,8,7,6,5,4,3,2])
+    const d2 = calc(base12 + String(d1), [6,5,4,3,2,9,8,7,6,5,4,3,2])
+    return digits.endsWith(`${d1}${d2}`)
+  }
+
+  function formatCpfCnpj(value: string) {
+    const digits = value.replace(/\D/g, '')
+    if (digits.length <= 11) {
+      // CPF: 000.000.000-00
+      return digits
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    }
+    // CNPJ: 00.000.000/0000-00
+    return digits
+      .replace(/(\d{2})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1/$2')
+      .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+  }
 
   useEffect(() => {
     fetchClients()
@@ -47,11 +86,20 @@ export default function ClientesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Validação de CNPJ no frontend para melhor UX
+    if (formData.cnpj) {
+      if (!isValidCNPJ(formData.cnpj)) {
+        setCnpjError('CNPJ inválido')
+        return
+      }
+    }
     try {
+      // Normaliza o CNPJ removendo qualquer formatação antes de enviar
+      const payload = { ...formData, cnpj: formData.cnpj ? formData.cnpj.replace(/\D/g, '') : '' }
       const res = await fetch('http://localhost:8000/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
       if (!res.ok) {
         const err = await res.json()
@@ -62,6 +110,7 @@ export default function ClientesPage() {
       setClients([data, ...clients])
       setShowModal(false)
       resetForm()
+      setCnpjError(null)
       alert('Cliente criado com sucesso!')
     } catch (error) {
       console.error('Erro:', error)
@@ -209,10 +258,11 @@ export default function ClientesPage() {
                     <input
                       type="text"
                       value={formData.cnpj}
-                      onChange={(e) => setFormData({...formData, cnpj: e.target.value})}
+                      onChange={(e) => setFormData({...formData, cnpj: formatCpfCnpj(e.target.value)})}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="00.000.000/0000-00"
                     />
+                    {cnpjError && <p className="text-sm text-red-600 mt-1">{cnpjError}</p>}
                   </div>
 
                   <div>

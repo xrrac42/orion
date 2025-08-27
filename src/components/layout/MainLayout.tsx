@@ -22,7 +22,7 @@ interface MainLayoutProps {
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Início', href: '/dashboard', icon: HomeIcon },
   { name: 'Clientes', href: '/clientes', icon: UsersIcon },
   { name: 'Relatórios', href: '/relatorios', icon: DocumentTextIcon },
   { name: 'Configurações', href: '/configuracoes', icon: CogIcon },

@@ -132,7 +132,6 @@ export default function ClienteBalancetesPage() {
     );
   }
 
-  // ...existing code...
 
   const meses = [
     { value: '1', label: 'Janeiro' },
@@ -186,7 +185,7 @@ export default function ClienteBalancetesPage() {
                   <CardTitle>Upload de Balancete</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <UploadBalancete clientId={clienteId} onUpload={() => { setShowUploadForm(false); fetchData(); }} />
+                  <UploadBalancete clientId={clienteId} onUploadSuccess={() => { setShowUploadForm(false); fetchData(); }} />
                   <Button variant="outline" className="mt-4 w-full" onClick={() => setShowUploadForm(false)}>
                     Cancelar
                   </Button>

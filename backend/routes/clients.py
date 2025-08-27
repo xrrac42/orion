@@ -7,6 +7,36 @@ from typing import List, Optional
 from pydantic import BaseModel
 from database import get_supabase_client
 import logging
+import re
+
+
+def is_valid_cnpj(cnpj: str) -> bool:
+    """Valida um CNPJ brasileiro.
+
+    Aceita formatos com ou sem pontuação. Retorna True se válido.
+    """
+    if not cnpj:
+        return False
+    # Remove tudo que não for dígito
+    digits = re.sub(r"\D", "", cnpj)
+    if len(digits) != 14:
+        return False
+    # Rejeita sequências repetidas (ex: 00000000000000)
+    if digits == digits[0] * 14:
+        return False
+
+    def calc_digit(digs: str, weights: list[int]) -> str:
+        s = sum(int(d) * w for d, w in zip(digs, weights))
+        r = s % 11
+        return '0' if r < 2 else str(11 - r)
+
+    base = digits[:12]
+    first_weights = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    second_weights = [6] + first_weights
+
+    d1 = calc_digit(base, first_weights)
+    d2 = calc_digit(base + d1, second_weights)
+    return digits.endswith(d1 + d2)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -47,6 +77,10 @@ async def create_client(client: ClientCreate):
     """Create new client"""
     try:
         supabase = get_supabase_client()
+        # Valida CNPJ quando fornecido
+        if client.cnpj:
+            if not is_valid_cnpj(client.cnpj):
+                raise HTTPException(status_code=400, detail="CNPJ inválido")
         # Verifica se já existe cliente com o mesmo CNPJ
         if client.cnpj:
             existing = supabase.table('clients')\

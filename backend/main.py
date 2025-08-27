@@ -2,8 +2,25 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import logging # Importa a biblioteca de logging
 from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries, pdf_processor
 from routers import monthly_analyses
+
+# --- CONFIGURAÇÃO DE LOGGING ---
+# Mostrar apenas INFO+ por padrão e silenciar loggers verbosos (httpx/httpcore/asyncio/urllib3)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+)
+# Silencia ruído de dependências comuns
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('asyncio').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('uvicorn').setLevel(logging.INFO)
+logging.getLogger('uvicorn.error').setLevel(logging.INFO)
+logging.getLogger('uvicorn.access').setLevel(logging.INFO)
+
 
 # Carregar variáveis de ambiente
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))

@@ -1,49 +1,69 @@
 # -*- coding: utf-8 -*-
 """
-Módulo central que orquestra o processo de análise de um PDF.
-Agora simplificado para confiar na análise completa do LLM.
+Módulo para extrair texto de PDFs de forma estruturada, preservando tabelas.
+Usa uma abordagem dupla com pdfplumber e PyPDF2 como fallback para garantir a extração.
 """
 import logging
-from pdf_processor import extract_structured_text_from_pdf
-from llm_analyzer import GeminiAnalyzer
-from database import create_analysis_and_entries # Nova função de banco de dados
+import io
+import pdfplumber
+from PyPDF2 import PdfReader
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-class CoreProcessor:
-    def __init__(self):
-        self.llm_analyzer = GeminiAnalyzer()
+def extract_structured_text_from_pdf(file_content: bytes) -> Optional[str]:
+    """
+    Extrai texto de um PDF usando pdfplumber e, se falhar, tenta com PyPDF2.
+    """
+    if not file_content:
+        logger.error("O conteúdo do arquivo PDF está vazio.")
+        return None
 
-    async def process_pdf_file(self, file_content: bytes, client_id: str, file_upload_id: str, file_name: str = None):
-        """
-        Processa um arquivo PDF do início ao fim usando a abordagem LLM-centric.
-        """
-        try:
-            # 1. Extrair texto estruturado do PDF
-            text_content = extract_structured_text_from_pdf(file_content)
-            if not text_content:
-                raise ValueError("Não foi possível extrair texto estruturado do PDF.")
-
-            # 2. IA analisa, calcula e estrutura TUDO
-            analysis_data = await self.llm_analyzer.analyze_and_structure_balancete(text_content)
-            if not analysis_data:
-                raise ValueError("A análise completa com IA falhou ou retornou dados vazios.")
-
-            # 3. Salva a análise e suas entradas no banco de dados de uma vez
-            # Esta nova função em database.py usará uma transação para garantir a consistência
-            # Propagar file_name para a função de persistência
-            if file_name:
-                analysis_data["file_name"] = file_name
-            new_analysis = await create_analysis_and_entries(
-                client_id=client_id,
-                file_upload_id=file_upload_id,
-                analysis_data=analysis_data
-            )
+    full_text = ""
+    
+    # --- TENTATIVA 1: pdfplumber (melhor para tabelas) ---
+    try:
+        logger.info("Tentando extrair texto com pdfplumber...")
+        all_text_parts = []
+        with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+            for i, page in enumerate(pdf.pages):
+                page_text = page.extract_text()
+                if page_text:
+                    all_text_parts.append(f"\\n--- PÁGINA {i+1} ---\\n")
+                    all_text_parts.append(page_text)
+        
+        full_text = "\\n".join(all_text_parts).strip()
+        
+        if full_text:
+            logger.info("Texto extraído com sucesso usando pdfplumber.")
+            return full_text
+        else:
+            logger.warning("pdfplumber não extraiu texto. Tentando fallback com PyPDF2.")
             
-            logger.info(f"Processamento e salvamento concluídos com sucesso para a análise {new_analysis.id}.")
-            return {"status": "success", "analysis_id": new_analysis.id}
+    except Exception as e:
+        logger.warning(f"pdfplumber falhou com o erro: {e}. Tentando fallback com PyPDF2.")
+        full_text = "" # Reseta o texto para garantir que o fallback seja executado
 
-        except Exception as e:
-            logger.exception(f"Falha no processamento do arquivo para o upload {file_upload_id}: {e}")
-            # Aqui você deve atualizar o status do 'file_upload' para 'failed'
-            return {"status": "error", "message": str(e)}
+    # --- TENTATIVA 2: PyPDF2 (fallback) ---
+    try:
+        logger.info("Tentando extrair texto com PyPDF2...")
+        all_text_parts = []
+        pdf_reader = PdfReader(io.BytesIO(file_content))
+        for i, page in enumerate(pdf_reader.pages):
+            page_text = page.extract_text()
+            if page_text:
+                all_text_parts.append(f"\\n--- PÁGINA {i+1} ---\\n")
+                all_text_parts.append(page_text)
+        
+        full_text = "\\n".join(all_text_parts).strip()
+
+        if full_text:
+            logger.info("Texto extraído com sucesso usando PyPDF2.")
+            return full_text
+        else:
+            logger.error("Ambos pdfplumber e PyPDF2 falharam em extrair texto do PDF.")
+            return None
+            
+    except Exception as e:
+        logger.exception(f"Falha crítica ao processar o arquivo PDF com PyPDF2: {e}")
+        return None
