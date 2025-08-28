@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import MainLayout from '@/components/layout/MainLayout'
+import { EyeIcon } from '@heroicons/react/24/outline'
 
 
 export default function DashboardPage() {
 
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<any>({
     totalClientes: 0,
     totalBalancetes: 0,
     loading: true
@@ -15,20 +17,21 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-  const res = await fetch('http://localhost:8000/api/dashboard/stats');
+  const res = await fetch('http://localhost:8000/api/home/stats');
         if (res.ok) {
           const data = await res.json();
           setStats({
             totalClientes: data.total_clientes || 0,
             totalBalancetes: data.total_balancetes || 0,
+            recentUploads: data.recent_uploads || [],
             loading: false
           });
         } else {
-          setStats(prev => ({ ...prev, loading: false }));
+          setStats((prev: any) => ({ ...prev, loading: false }));
         }
       } catch (error) {
         console.error('Erro ao buscar estatísticas:', error);
-        setStats(prev => ({ ...prev, loading: false }));
+  setStats((prev: any) => ({ ...prev, loading: false }));
       }
     };
     fetchStats();
@@ -133,9 +136,10 @@ export default function DashboardPage() {
 
   // Dashboard com dados reais
   return (
+    <MainLayout>
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Início</h1>
         <p className="mt-2 text-gray-600">
           Visão geral da gestão contábil dos seus clientes
         </p>
@@ -144,52 +148,87 @@ export default function DashboardPage() {
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total de Clientes
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.totalClientes}
-                  </dd>
-                </dl>
-              </div>
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex-1">
+              <div className="text-lg font-medium text-gray-900">{stats.totalClientes}</div>
+              <div className="text-sm text-gray-500 mt-1">Total de Clientes</div>
+            </div>
+            <div className="flex-shrink-0 text-gray-400 ml-4">
+              <svg className="h-8 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
             </div>
           </div>
         </div>
 
         <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Balancetes Cadastrados
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {stats.totalBalancetes}
-                  </dd>
-                </dl>
-              </div>
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex-1">
+              <div className="text-lg font-medium text-gray-900">{stats.totalBalancetes}</div>
+              <div className="text-sm text-gray-500 mt-1">Balancetes Cadastrados</div>
+            </div>
+            <div className="flex-shrink-0 text-gray-400 ml-4">
+              <svg className="h-8 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
             </div>
           </div>
+        </div>
+
+        
+      </div>
+
+      {/* Recent uploads */}
+    <div className="mt-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Últimos uploads de balancete</h3>
+        <div className="bg-white shadow rounded-lg p-4 mt-4">
+      {Array.isArray((stats as any).recentUploads) && (stats as any).recentUploads.length > 0 ? (
+            <ul className="divide-y divide-gray-100">
+              {(stats as any).recentUploads.map((u: any) => (
+                <li key={u.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{u.file_name}</p>
+                    <p className="text-xs text-gray-500">Cliente: {u.client_name}</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="text-xs text-gray-400">{new Date(u.uploaded_at).toLocaleString()}</div>
+                    {(() => {
+                      const safeClientId = u.client_id || u.clientId || '';
+                      if (!safeClientId) {
+                        return <span className="text-sm text-gray-500">Cliente desconhecido</span>;
+                      }
+
+                      if (u.analysis_id) {
+                        return (
+                          <Link href={`/clientes/${safeClientId}/dashboard/${u.analysis_id}`}>
+                            <button className="inline-flex items-center px-3 py-1 border rounded-md text-sm text-indigo-600 hover:bg-indigo-50 cursor-pointer">
+                              <EyeIcon className="h-4 w-4" />
+                            </button>
+                          </Link>
+                        );
+                      }
+
+                      return (
+                        <Link href={`/clientes/${safeClientId}/balancetes`}>
+                          <button className="inline-flex items-center px-3 py-1 border rounded-md text-sm text-gray-600 hover:bg-gray-50 cursor-pointer">
+                            <EyeIcon className="h-4 w-4" />
+                          </button>
+                        </Link>
+                      );
+                    })()}
+
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500">Nenhum upload recente encontrado.</p>
+          )}
         </div>
       </div>
 
       {/* Links rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Ações Rápidas</h3>
@@ -227,5 +266,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </MainLayout>
   )
 }

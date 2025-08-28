@@ -96,6 +96,18 @@ async def upload_balancete(
 async def get_balancetes_cliente(client_id: str):
     supabase = get_supabase_client()
     try:
+        # Validate client_id early to avoid passing invalid UUIDs to the DB client
+        if not client_id or client_id in ('undefined', 'null'):
+            logger.warning(f'get_balancetes_cliente called with invalid client_id: {client_id}')
+            raise HTTPException(status_code=400, detail='client_id inválido')
+
+        # Optional: quick UUID format validation to return 400 instead of 500
+        try:
+            import uuid
+            uuid.UUID(client_id)
+        except Exception:
+            logger.warning(f'get_balancetes_cliente received non-UUID client_id: {client_id}')
+            raise HTTPException(status_code=400, detail='client_id deve ser um UUID válido')
         response = supabase.table('monthly_analyses')\
             .select('id, client_id, reference_year, reference_month, total_receitas, total_despesas, lucro_bruto, id')\
             .eq('client_id', client_id)\

@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import logging # Importa a biblioteca de logging
-from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries, pdf_processor
-from routes import financial_entries
+from routes import auth, clients, dashboard, balancetes, relatorios, financial_entries, pdf_processor, home
 from routers import monthly_analyses
 
 # --- CONFIGURAÇÃO DE LOGGING ---
@@ -41,6 +40,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(home.router, prefix="/api/home", tags=["Home"])
 app.include_router(balancetes.router, prefix="/api/balancetes", tags=["Balancetes"])
 app.include_router(pdf_processor.router, prefix="/api/pdf", tags=["PDF Processing"])
 app.include_router(relatorios.router, prefix="/api/relatorios", tags=["Relatórios"])
