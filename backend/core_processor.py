@@ -1,51 +1,83 @@
-# -*- coding: utf-8 -*-
-"""
-Módulo central que orquestra o processo de análise de um PDF,
-confiando na IA para extrair os dados já processados.
-"""
+# backend/core_processor.py
 import logging
+import tempfile
+import os
+import json
 from pdf_processor import extract_structured_text_from_pdf
-from llm_analyzer import GeminiAnalyzer
-from database import create_analysis_and_entries # Usando a função de banco de dados que faz o "upsert"
+# Use the standalone parsers (local test scripts)
+from parser_test import parse_balancete_for_db
+from parser_test2 import extrair_analise_balancete
+from database import create_analysis_and_entries
 
 logger = logging.getLogger(__name__)
 
 class CoreProcessor:
     def __init__(self):
-        self.llm_analyzer = GeminiAnalyzer()
+        # Não precisamos mais do GeminiAnalyzer aqui
+        pass
 
-    async def process_pdf_file(self, file_content: bytes, client_id: str, file_upload_id: str, file_name: str = None):
-        """
-        Processa um arquivo PDF do início ao fim, chamando o método de extração correto.
-        """
+    async def process_pdf_file(self, file_content: bytes, client_id: str, file_upload_id: str, file_name: str = None, reference_year: int = None, reference_month: int = None):
         try:
-            # 1. Extrair texto estruturado do PDF
-            text_content = extract_structured_text_from_pdf(file_content)
-            if not text_content:
-                raise ValueError("Não foi possível extrair texto estruturado do PDF.")
+            # Save bytes to a temp file so existing parsers (which accept path) can use it
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tf:
+                tf.write(file_content)
+                tmp_path = tf.name
 
-            # 2. IA analisa e extrai os dados do texto
-            # CORREÇÃO DEFINITIVA: Chamando o método renomeado 'extract_data_from_text'
-            analysis_data = await self.llm_analyzer.extract_data_from_text(text_content)
-            if not analysis_data:
-                raise ValueError("A análise com IA falhou ou retornou dados vazios.")
+            try:
+                # 1) Extract financial entries using parser_test
+                logger.info("Executando parser de financial_entries (parser_test)")
+                fin_data = parse_balancete_for_db(tmp_path)
 
-            # 3. Adiciona o nome do arquivo aos dados para salvar no banco
-            if file_name:
-                analysis_data["file_name"] = file_name
+                # 2) Extract monthly analysis (raw) using parser_test2
+                logger.info("Executando parser de monthly_analysis (parser_test2)")
+                raw_analysis_json = extrair_analise_balancete(tmp_path)
+                try:
+                    raw_analysis = json.loads(raw_analysis_json) if isinstance(raw_analysis_json, str) else raw_analysis_json
+                except Exception:
+                    # If parser_test2 returns already a dict or fails to parse, keep raw string
+                    raw_analysis = raw_analysis_json
 
-            # 4. Salva a análise e suas entradas no banco de dados
-            # A função create_analysis_and_entries já está preparada para o formato extraído
-            new_analysis = await create_analysis_and_entries(
-                client_id=client_id,
-                file_upload_id=file_upload_id,
-                analysis_data=analysis_data
-            )
-            
-            logger.info(f"Processamento e salvamento concluídos com sucesso para a análise {new_analysis.id}.")
-            return {"status": "success", "analysis_id": new_analysis.id}
+                # 3) Build canonical analysis_data expected by create_analysis_and_entries
+                resumo = {}
+                # Try to read totals from raw_analysis (various keys depending on parser)
+                if isinstance(raw_analysis, dict):
+                    # Various parser versions may use different keys
+                    resumo['total_receitas'] = raw_analysis.get('valores_periodo', {}).get('receita') or raw_analysis.get('total_receitas') or 0
+                    resumo['total_despesas_custos'] = raw_analysis.get('valores_periodo', {}).get('despesa_custo') or raw_analysis.get('total_despesas') or 0
+                    # include lucro if available so DB can persist lucro_bruto
+                    if raw_analysis.get('valores_periodo', {}).get('lucro') is not None:
+                        resumo['lucro'] = raw_analysis.get('valores_periodo', {}).get('lucro')
+                else:
+                    resumo['total_receitas'] = 0
+                    resumo['total_despesas_custos'] = 0
+
+                analysis_payload = {
+                    'cliente': fin_data.get('empresa') or None,
+                    'data_final': (raw_analysis.get('periodo_fim') if isinstance(raw_analysis, dict) else None) or (fin_data.get('periodo', {}).get('fim') if isinstance(fin_data.get('periodo'), dict) else None),
+                    'file_name': file_name or '',
+                    'resumo_periodo': resumo,
+                    'financial_entries': fin_data.get('financial_entries', []),
+                    'raw_analysis': raw_analysis,
+                    'source_raw_text': None,
+                    'reference_year': reference_year,
+                    'reference_month': reference_month
+                }
+
+                # 4) Persist
+                new_analysis = await create_analysis_and_entries(
+                    client_id=client_id,
+                    file_upload_id=file_upload_id,
+                    analysis_data=analysis_payload
+                )
+
+                logger.info(f"Processamento com Python concluído para a análise {new_analysis.id}.")
+                return {"status": "success", "analysis_id": new_analysis.id}
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
 
         except Exception as e:
-            logger.exception(f"Falha no processamento do arquivo para o upload {file_upload_id}: {e}")
-            # Retorna um erro claro para a rota
+            logger.exception(f"Falha no processamento do arquivo: {e}")
             return {"status": "error", "message": str(e)}

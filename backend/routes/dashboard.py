@@ -1,216 +1,263 @@
 # backend/routes/dashboard.py
-from fastapi import APIRouter, HTTPException, Query, Body, Response
-from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, HTTPException, Query, status, Body
+from typing import List, Optional
 from pydantic import BaseModel
 from database import get_supabase_client
 import logging
 
-router = APIRouter(tags=["Dashboard"])
+router = APIRouter(
+    prefix="/api/dashboard",
+    tags=["Dashboard"]
+)
 logger = logging.getLogger(__name__)
 
+# ... (Mantenha o Pydantic Model 'DashboardResponse') ...
 class DashboardResponse(BaseModel):
     cliente: str
     periodo: str
     kpis: dict
     financial_entries: list
+    grafico_receitas: Optional[list] = None
+    grafico_despesas: Optional[list] = None
 
 
-class AggregateRequest(BaseModel):
-    # Either provide analysis_ids OR provide periods (each with year and month and optional client_id)
-    analysis_ids: Optional[List[int]] = None
-    periods: Optional[List[Dict[str, int]]] = None
+@router.post('/aggregate')
+def aggregate_dashboard(payload: dict = Body(...)):
+    """
+    Endpoint de agregação que aceita:
+    - { analysis_ids: [1,2,3] }
+    OU
+    - { client_id: str, periods: [{ year: 2024, month: 12 }, ...] }
 
+    Retorna: { kpis, grafico_receitas, grafico_despesas, financial_entries }
+    """
+    supabase = get_supabase_client()
+    try:
+        logger.debug(f"aggregate called with payload: {payload}")
+        analysis_ids: List[int] = payload.get('analysis_ids') or []
+        client_id: Optional[str] = payload.get('client_id')
+        periods = payload.get('periods') or []
 
-class AggregateResponse(BaseModel):
-    kpis: dict
-    grafico_receitas: List[dict]
-    grafico_despesas: List[dict]
-    financial_entries: List[dict]
+        # Resolve analysis_ids from periods if needed
+        if not analysis_ids and client_id and periods:
+            for p in periods:
+                year = p.get('year')
+                month = p.get('month')
+                if year is None or month is None:
+                    continue
+                resp = supabase.table('monthly_analyses')\
+                    .select('id')\
+                    .eq('client_id', client_id)\
+                    .eq('reference_year', year)\
+                    .eq('reference_month', month)\
+                    .limit(1)\
+                    .execute()
+                logger.debug(f"resolved monthly_analyses query for client={client_id} year={year} month={month} -> resp.error={getattr(resp, 'error', None)} resp.data={getattr(resp, 'data', None)}")
+                if getattr(resp, 'data', None):
+                    analysis_ids.append(resp.data[0]['id'])
 
-@router.get("/")
+        logger.info(f"aggregate resolved analysis_ids: {analysis_ids}")
+        if not analysis_ids:
+            raise HTTPException(status_code=400, detail='Nenhum analysis_id encontrado ou informado.')
+
+        # Fetch financial entries for these analyses
+        entries_resp = supabase.table('financial_entries')\
+            .select('*')\
+            .in_('analysis_id', analysis_ids)\
+            .execute()
+        entries = entries_resp.data if getattr(entries_resp, 'data', None) else []
+        logger.info(f"financial_entries fetched: {len(entries)} entries for analyses {analysis_ids}")
+
+        # Helper: determine if an entry is receita
+        def _is_receita(movement_raw: Optional[str]) -> bool:
+            if not movement_raw:
+                return False
+            m = str(movement_raw).strip().lower()
+            if m == 'r' or m.startswith('r'):
+                return True
+            return 'receita' in m
+
+        # Aggregate values by subgroup_1
+        receitas_map = {}
+        despesas_map = {}
+        total_receitas = 0.0
+        total_despesas = 0.0
+
+        for e in entries:
+            mt_raw = e.get('movement_type') or ''
+            is_rec = _is_receita(mt_raw)
+            # prefer subgroup_1 but accept common alternatives
+            cat = e.get('subgroup_1') or e.get('subgrupo') or 'Outros'
+            try:
+                val = float(e.get('period_value') or 0)
+            except Exception:
+                # try to coerce from localized formats
+                try:
+                    sval = str(e.get('period_value') or '0').replace('.', '').replace(',', '.')
+                    val = float(sval)
+                except Exception:
+                    val = 0.0
+
+            if is_rec:
+                receitas_map[cat] = receitas_map.get(cat, 0.0) + val
+                total_receitas += val
+            else:
+                despesas_map[cat] = despesas_map.get(cat, 0.0) + val
+                total_despesas += val
+
+        def map_to_array(m: dict, total: float):
+            arr = []
+            for k, v in m.items():
+                percentual = (v / total * 100) if total > 0 else 0
+                arr.append({'categoria': k, 'valor': v, 'percentual': percentual})
+            arr.sort(key=lambda x: x['valor'], reverse=True)
+            return arr
+
+        grafico_receitas = map_to_array(receitas_map, total_receitas)
+        grafico_despesas = map_to_array(despesas_map, total_despesas)
+
+        kpis = {
+            'receita_total': total_receitas,
+            'despesa_total': total_despesas,
+            'resultado_periodo': total_receitas - total_despesas
+        }
+
+        return {
+            'kpis': kpis,
+            'grafico_receitas': grafico_receitas,
+            'grafico_despesas': grafico_despesas,
+            'financial_entries': entries
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f'Erro no aggregate: {e}')
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/", response_model=DashboardResponse)
 def get_dashboard_data(
     client_id: str = Query(...),
     year: int = Query(...),
     month: int = Query(...)
 ):
+    """
+    Busca os dados do dashboard para um cliente e período específicos.
+    Lida corretamente com casos onde nenhum relatório é encontrado.
+    """
     supabase = get_supabase_client()
     try:
-            # monthly_analyses is the canonical table used in the schema
-            resp = supabase.table('monthly_analyses')\
-                .select('*')\
-                .eq('client_id', client_id)\
-                .eq('reference_year', year)\
-                .eq('reference_month', month)\
-                .limit(1)\
-                .execute()
+        # Log incoming params for diagnostics
+        logger.debug(f"get_dashboard_data called with client_id={client_id} year={year} month={month}")
 
-            if not resp or not getattr(resp, 'data', None) or len(resp.data) == 0:
-                # no report found for this period
-                raise HTTPException(status_code=404, detail="Relatório não encontrado para este período.")
+        # CORREÇÃO: Usamos .maybe_single() que retorna None se não encontrar nada, sem dar erro.
+        response = supabase.table('monthly_analyses')\
+            .select('*')\
+            .eq('client_id', client_id)\
+            .eq('reference_year', year)\
+            .eq('reference_month', month)\
+            .maybe_single()\
+            .execute()
 
-            report = resp.data[0]
+        logger.debug(f"monthly_analyses query result: {getattr(response, 'data', None)}")
 
-            # load financial entries for the analysis (if any)
-            entries = []
-            analysis_id = report.get('id')
-            if analysis_id:
-                eres = supabase.table('financial_entries')\
-                    .select('specific_account,subgroup_1,movement_type,period_value')\
-                    .eq('analysis_id', analysis_id)\
-                    .execute()
-                entries = eres.data or []
-
-            # defensive mapping of KPI fields (schema uses total_receitas/total_despesas/lucro_bruto)
-            receita = report.get('total_receitas') or 0
-            despesa = report.get('total_despesas') or 0
-            resultado = report.get('lucro_bruto')
-            if resultado is None:
-                try:
-                    resultado = receita - despesa
-                except Exception:
-                    resultado = 0
-
-            cliente_name = report.get('client_name') or report.get('client_id')
-
+        if not response.data:
+            # Não encontramos relatório: logamos e retornamos 200 com payload vazio para UX mais suave.
+            logger.info(f"Nenhum relatório encontrado para client_id={client_id} year={year} month={month}")
             return {
-                'cliente': cliente_name,
-                'periodo': f"{report.get('reference_month')}/{report.get('reference_year')}",
-                'kpis': {
-                    'receita_total': receita,
-                    'despesa_total': despesa,
-                    'resultado_periodo': resultado
-                },
-                'financial_entries': entries
+                "cliente": "",
+                "periodo": f"{int(month)}/{int(year)}",
+                "kpis": {},
+                "financial_entries": []
             }
 
+        report = response.data
+        
+        # Busca os lançamentos associados a essa análise
+        entries_response = supabase.table('financial_entries')\
+            .select('*')\
+            .eq('analysis_id', report['id'])\
+            .execute()
+        entries = entries_response.data if entries_response and getattr(entries_response, 'data', None) else []
+        logger.debug(f"financial_entries count for analysis {report.get('id')}: {len(entries)}")
+
+        return {
+            "cliente": report.get('client_name'),
+            "periodo": f"{report.get('reference_month')}/{report.get('reference_year')}",
+            "kpis": {
+                "receita_total": report.get('total_receitas'),
+                "despesa_total": report.get('total_despesas'),
+                "resultado_periodo": report.get('lucro_bruto')
+            },
+            "financial_entries": entries
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Erro ao buscar dados do dashboard: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post('/aggregate', response_model=AggregateResponse)
-def aggregate_dashboards(req: AggregateRequest = Body(...), response: Response = None):
-    """Aggregate multiple monthly analyses identified by analysis_ids or by (year,month) pairs.
-    Returns summed KPIs and pre-aggregated grafico_receitas/grafico_despesas built from financial_entries.
+@router.get('/{analysis_id}', response_model=DashboardResponse)
+def get_dashboard_by_analysis(analysis_id: int):
+    """Retorna dashboard (KPIs, gráficos e lançamentos) para uma analysis_id específica.
+    Endpoint usado pelo frontend que referencia análises por id (ex: /api/dashboard/{analysis_id}).
     """
     supabase = get_supabase_client()
     try:
-        analysis_ids: List[int] = []
+        resp = supabase.table('monthly_analyses').select('*').eq('id', analysis_id).maybe_single().execute()
+        if not getattr(resp, 'data', None):
+            raise HTTPException(status_code=404, detail='Analysis não encontrada')
+        report = resp.data
 
-        # If analysis_ids provided, use them
-        if req.analysis_ids:
-            analysis_ids = [int(x) for x in req.analysis_ids]
-        elif req.periods:
-            # periods is list of {"year": 2024, "month": 12, "client_id": "..." (optional)}
-            for p in req.periods:
-                year = int(p.get('year'))
-                month = int(p.get('month'))
-                client_id = p.get('client_id')
-                q = supabase.table('monthly_analyses').select('id').eq('reference_year', year).eq('reference_month', month)
-                if client_id:
-                    q = q.eq('client_id', client_id)
-                r = q.execute()
-                if r and getattr(r, 'data', None):
-                    for row in r.data:
-                        if row.get('id') is not None:
-                            analysis_ids.append(int(row.get('id')))
+        entries_resp = supabase.table('financial_entries').select('*').eq('analysis_id', analysis_id).execute()
+        entries = entries_resp.data if getattr(entries_resp, 'data', None) else []
 
-        logger.debug('aggregate_dashboards called with analysis_ids (pre-dedupe): %s, periods: %s', req.analysis_ids, req.periods)
-
-        if not analysis_ids:
-            raise HTTPException(status_code=400, detail='Nenhum analysis_id encontrado para agregar')
-
-        # Deduplicate
-        analysis_ids = list(dict.fromkeys(analysis_ids))
-        logger.debug('aggregate_dashboards deduped analysis_ids: %s', analysis_ids)
-
-        # set Cache-Control header to allow short-term caching of this aggregation response
-        try:
-            if response is not None:
-                response.headers['Cache-Control'] = 'public, max-age=120'
-        except Exception:
-            # don't fail aggregation if headers cannot be set for some reason
-            logger.exception('Failed to set Cache-Control header on aggregate response')
-
-        # Fetch monthly_analyses rows for metadata and KPIs
-        resp = supabase.table('monthly_analyses').select('*').in_('id', analysis_ids).execute()
-        rows = resp.data or []
-        logger.debug('aggregate_dashboards fetched %d monthly_analyses rows for ids %s', len(rows), analysis_ids)
-
-        agg_receita = 0
-        agg_despesa = 0
-        agg_resultado = 0
-        all_entries: List[Dict[str, Any]] = []
-
-        for r in rows:
-            receita = r.get('total_receitas') or 0
-            despesa = r.get('total_despesas') or 0
-            resultado = r.get('lucro_bruto')
-            if resultado is None:
-                try:
-                    resultado = receita - despesa
-                except Exception:
-                    resultado = 0
-
-            agg_receita += float(receita)
-            agg_despesa += float(despesa)
-            agg_resultado += float(resultado)
-
-        # Load financial_entries for all analysis_ids
-        entries_resp = supabase.table('financial_entries').select('specific_account,subgroup_1,movement_type,period_value,analysis_id').in_('analysis_id', analysis_ids).execute()
-        entries = entries_resp.data or []
-        all_entries.extend(entries)
-        logger.debug('aggregate_dashboards fetched %d financial_entries across analyses', len(entries))
-
-        # Build grafico_receitas & grafico_despesas by grouping subgroup_1
-        receita_map: Dict[str, float] = {}
-        despesa_map: Dict[str, float] = {}
-
-        for e in all_entries:
-            mv_raw = e.get('movement_type')
-            mv = (str(mv_raw).strip().lower() if mv_raw is not None else '')
-            sub = e.get('subgroup_1') or 'Outros'
+        # build charts from entries
+        receitas_map = {}
+        despesas_map = {}
+        total_receitas = 0.0
+        total_despesas = 0.0
+        for e in entries:
+            mt = (e.get('movement_type') or '').strip().lower()
+            cat = e.get('subgroup_1') or 'Outros'
             try:
                 val = float(e.get('period_value') or 0)
             except Exception:
-                val = 0
-
-            # classify receipts case-insensitively; anything else is treated as expense
-            if mv == 'receita':
-                receita_map[sub] = receita_map.get(sub, 0) + val
+                val = 0.0
+            if mt == 'receita' or mt == 'r' or 'receita' in mt:
+                receitas_map[cat] = receitas_map.get(cat, 0.0) + val
+                total_receitas += val
             else:
-                despesa_map[sub] = despesa_map.get(sub, 0) + val
+                despesas_map[cat] = despesas_map.get(cat, 0.0) + val
+                total_despesas += val
 
-        # Convert maps to arrays with percentual and color
-        def to_arr(m: Dict[str, float], total: float):
-            palette = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#F97316', '#EC4899']
+        def map_to_array(m, total):
             arr = []
-            for i, (cat, v) in enumerate(sorted(m.items(), key=lambda x: x[1], reverse=True)):
-                porcent = (v / total * 100) if total and total > 0 else 0
-                arr.append({ 'categoria': cat, 'valor': v, 'percentual': porcent, 'cor': palette[i % len(palette)], 'contas_detalhadas': [] })
+            for k, v in m.items():
+                percentual = (v / total * 100) if total > 0 else 0
+                arr.append({ 'categoria': k, 'valor': v, 'percentual': percentual })
+            arr.sort(key=lambda x: x['valor'], reverse=True)
             return arr
 
-        grafico_r = to_arr(receita_map, agg_receita)
-        grafico_d = to_arr(despesa_map, agg_despesa)
+        grafico_receitas = map_to_array(receitas_map, total_receitas)
+        grafico_despesas = map_to_array(despesas_map, total_despesas)
 
-        if not grafico_r and all_entries:
-            logger.warning('grafico_receitas is empty but financial_entries exist; receita_map=%s, agg_receita=%s', receita_map, agg_receita)
-        if not grafico_d and all_entries:
-            logger.warning('grafico_despesas is empty but financial_entries exist; despesa_map=%s, agg_despesa=%s', despesa_map, agg_despesa)
-
-        return {
-            'kpis': {
-                'receita_total': agg_receita,
-                'despesa_total': agg_despesa,
-                'resultado_periodo': agg_resultado
-            },
-            'grafico_receitas': grafico_r,
-            'grafico_despesas': grafico_d,
-            'financial_entries': all_entries
+        kpis = {
+            'receita_total': report.get('total_receitas'),
+            'despesa_total': report.get('total_despesas'),
+            'resultado_periodo': report.get('lucro_bruto')
         }
 
+        return {
+            'cliente': report.get('client_name'),
+            'periodo': f"{report.get('reference_month')}/{report.get('reference_year')}",
+            'kpis': kpis,
+            'grafico_receitas': grafico_receitas,
+            'grafico_despesas': grafico_despesas,
+            'financial_entries': entries
+        }
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception('Erro ao agregar dashboards: %s', e)
-        raise HTTPException(status_code=500, detail='Erro interno ao agregar dashboards')
+        logger.exception(f'Erro ao buscar dashboard por analysis_id: {e}')
+        raise HTTPException(status_code=500, detail=str(e))

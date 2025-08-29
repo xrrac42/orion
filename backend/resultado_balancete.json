@@ -1,0 +1,21 @@
+{
+    "monthly_analysis": {
+        "client_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        "report_date": "2024-12-31",
+        "reference_month": 12,
+        "reference_year": 2024,
+        "client_name": "UNITY COMERCIO E SERVICOS AUTOMOTIVOS LTDA",
+        "status": "completed",
+        "source_file_path": "uploads/balancete.pdf",
+        "source_file_name": "BALANCETE UNITY.pdf",
+        "total_receitas": 0.0,
+        "total_despesas": 0.0,
+        "total_entries": 0,
+        "created_by": "f0e9d8c7-b6a5-4321-fedc-ba9876543210",
+        "full_analysis_data": {
+            "analise_balancete_saldos_finais": {},
+            "valores_periodo_movimento": {}
+        }
+    },
+    "financial_entries": []
+}

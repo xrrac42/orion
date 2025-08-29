@@ -52,8 +52,14 @@ async function getAvailableAnalyses(clientId: string) {
   return res.json();
 }
 
-// Busca os dados do dashboard pelo client_id + year + month
-async function getDashboardData(clientId: string, year: number, month: number) {
+// Busca os dados do dashboard pelo client_id + year + month (ou por analysis_id quando disponível)
+async function getDashboardData(clientId: string, year: number, month: number, analysisId?: number) {
+  if (analysisId) {
+    const res = await fetch(`${API_BASE_URL}/api/dashboard/${analysisId}`);
+    if (!res.ok) throw new Error(`Falha ao buscar dados do dashboard por analysis_id (status: ${res.status})`);
+    return res.json();
+  }
+
   const params = new URLSearchParams({
     client_id: clientId,
     year: String(year),
@@ -110,33 +116,62 @@ export default function DashboardFinanceiro() {
   // Build chart data and filtered entries using memo as suggested
   const [searchTerm, setSearchTerm] = useState<string>('');
   const { receitaChartData, despesaChartData, margemLucro, filteredEntries } = useMemo(() => {
-    // prefer backend-provided aggregated arrays when available
-    const receitaData = (receitaChartState && receitaChartState.length > 0) ? receitaChartState : (() => {
-      if (!contasDetalhes || contasDetalhes.length === 0) return [] as GastoPorCategoria[];
-      const map = new Map<string, number>();
-      const total = kpiData?.receita_total || contasDetalhes.filter(c => (c as any).movement_type === 'Receita').reduce((s, x) => s + x.valor, 0);
-      contasDetalhes.filter(e => (e as any).movement_type === 'Receita').forEach(e => map.set(e.subgrupo || 'Outras', (map.get(e.subgrupo || 'Outras') || 0) + e.valor));
-      const colors = ['#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7'];
-      return Array.from(map.entries()).map(([categoria, valor], idx) => ({ categoria, valor, percentual: total && total > 0 ? (valor / total) * 100 : 0, cor: colors[idx % colors.length], contas_detalhadas: [] }));
-    })();
+    // Always compute chart aggregates from the full source: contasDetalhes
+    const entries = contasDetalhes || [];
 
-    const despesaData = (despesaChartState && despesaChartState.length > 0) ? despesaChartState : (() => {
-      if (!contasDetalhes || contasDetalhes.length === 0) return [] as GastoPorCategoria[];
-      const map = new Map<string, number>();
-      const total = kpiData?.despesa_total || contasDetalhes.filter(c => (c as any).movement_type === 'Despesa').reduce((s, x) => s + x.valor, 0);
-      contasDetalhes.filter(e => (e as any).movement_type === 'Despesa').forEach(e => map.set(e.subgrupo || 'Outras', (map.get(e.subgrupo || 'Outras') || 0) + e.valor));
-      const colors = ['#EF4444', '#F97316', '#F59E0B', '#EAB308', '#D97706'];
-      return Array.from(map.entries()).map(([categoria, valor], idx) => ({ categoria, valor, percentual: total && total > 0 ? (valor / total) * 100 : 0, cor: colors[idx % colors.length], contas_detalhadas: [] }));
-    })();
+    // Accumulators
+    let totalReceita = 0;
+    let totalDespesa = 0;
+    const receitaMap = new Map<string, number>();
+    const despesaMap = new Map<string, number>();
 
-    const margem = (kpiData && kpiData.receita_total > 0) ? (kpiData.resultado_periodo / kpiData.receita_total) * 100 : 0;
+    for (const raw of entries) {
+      const e: any = raw;
+      const mv = e.movement_type ? String(e.movement_type).trim().toLowerCase() : '';
+      const val = Number(e.valor ?? 0) || 0;
+      const sub = e.subgrupo || 'Outros';
 
-    const filtered = contasDetalhes.filter(entry =>
-      entry.conta.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      if (mv === 'receita') {
+        totalReceita += val;
+        receitaMap.set(sub, (receitaMap.get(sub) || 0) + val);
+      } else {
+        totalDespesa += val;
+        despesaMap.set(sub, (despesaMap.get(sub) || 0) + val);
+      }
+    }
 
-    return { receitaChartData: receitaData, despesaChartData: despesaData, margemLucro: margem, filteredEntries: filtered };
-  }, [contasDetalhes, kpiData, searchTerm]);
+    const makeArray = (m: Map<string, number>, total: number, colors: string[]) => {
+      return Array.from(m.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([categoria, valor], idx) => ({
+          categoria,
+          valor,
+          percentual: total && total > 0 ? (valor / total) * 100 : 0,
+          cor: colors[idx % colors.length],
+          contas_detalhadas: []
+        }));
+    };
+
+    const receitaArr = (receitaChartState && receitaChartState.length > 0)
+      ? receitaChartState
+      : makeArray(receitaMap, (kpiData?.receita_total ?? totalReceita), ['#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7']);
+
+    const despesaArr = (despesaChartState && despesaChartState.length > 0)
+      ? despesaChartState
+      : makeArray(despesaMap, (kpiData?.despesa_total ?? totalDespesa), ['#EF4444', '#F97316', '#F59E0B', '#EAB308', '#D97706']);
+
+    const margem = (kpiData && kpiData.receita_total > 0)
+      ? (kpiData.resultado_periodo / kpiData.receita_total) * 100
+      : (totalReceita > 0 ? ((totalReceita - totalDespesa) / totalReceita) * 100 : 0);
+
+    // filteredEntries should be a view of the full entries source filtered by searchTerm
+    const filtered = entries.filter((entry: any) => {
+      if (!searchTerm) return true;
+      return (entry.conta || '').toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
+    return { receitaChartData: receitaArr, despesaChartData: despesaArr, margemLucro: margem, filteredEntries: filtered };
+  }, [contasDetalhes, kpiData, receitaChartState, despesaChartState, searchTerm]);
 
   const formatMonth = (mes: number, ano: number) => {
     const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -278,8 +313,10 @@ export default function DashboardFinanceiro() {
 
           // fallback: perform per-period requests and aggregate on client
         const requests = selectedPeriods.map(p => {
-          const [ano, mes] = p.split('-');
-          return getDashboardData(clienteId, Number(ano), Number(mes));
+          const [ano, mes] = p.split('-').map(x => Number(x));
+          const found = availableAnalyses.find(a => a.ano === ano && a.mes === mes && a.analysis_id);
+          const aid = found && found.analysis_id ? Number(found.analysis_id) : undefined;
+          return getDashboardData(clienteId, Number(ano), Number(mes), aid);
         });
 
         const results = await Promise.allSettled(requests);

@@ -1,0 +1,1260 @@
+{
+  "empresa": "UNITY COMERCIO E SERVICOS AUTOMOTIVOS LTDA",
+  "periodo": {
+    "inicio": "01/01/2024",
+    "fim": "31/12/2024"
+  },
+  "monthly_analysis": {
+    "total_receitas": 0,
+    "total_despesas": 0,
+    "valores_periodo": {}
+  },
+  "financial_entries": [
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "RECEITAS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40000",
+        "saldo_anterior": "1.496.228,79C",
+        "debito": "3.017.707,10",
+        "credito": "3.017.707,10",
+        "saldo_atual": "1.496.228,79C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "RECEITAS OPERACIONAIS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40001",
+        "saldo_anterior": "1.496.145,02C",
+        "debito": "1.542.126,82",
+        "credito": "1.542.126,82",
+        "saldo_atual": "1.496.145,02C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "RECEITAS DE SERVICOS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40002",
+        "saldo_anterior": "1.802.503,11C",
+        "debito": "1.475.579,70",
+        "credito": "1.475.579,70",
+        "saldo_atual": "1.802.503,11C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "RECEITA DE VENDAS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "45551",
+        "saldo_anterior": "1.638.268,64C",
+        "debito": "1.199.882,96",
+        "credito": "1.199.882,96",
+        "saldo_atual": "1.638.268,64C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "SERVICOS PRESTADOS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40003",
+        "saldo_anterior": "164.234,47C",
+        "debito": "275.696,74",
+        "credito": "275.696,74",
+        "saldo_atual": "164.234,47C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "DEDUÇOES DA RECEITA",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40004",
+        "saldo_anterior": "8.211,72D",
+        "debito": "16.159,89",
+        "credito": "16.159,89",
+        "saldo_atual": "8.211,72D"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "TRIBUTOS INCIDENTES",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40008",
+        "saldo_anterior": "8.211,72D",
+        "debito": "16.159,89",
+        "credito": "16.159,89",
+        "saldo_atual": "8.211,72D"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "ICMS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40014",
+        "saldo_anterior": "0,00D",
+        "debito": "1.334,32",
+        "credito": "1.334,32",
+        "saldo_atual": "0,00D"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "ISSQN",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40015",
+        "saldo_anterior": "8.211,72D",
+        "debito": "14.825,57",
+        "credito": "14.825,57",
+        "saldo_atual": "8.211,72D"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "DEVOLUÇÕES",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40005",
+        "saldo_anterior": "298.146,37D",
+        "debito": "50.387,23",
+        "credito": "50.387,23",
+        "saldo_atual": "298.146,37D"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "VENDAS CANCELADAS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40016",
+        "saldo_anterior": "298.146,37D",
+        "debito": "50.387,23",
+        "credito": "50.387,23",
+        "saldo_atual": "298.146,37D"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "TRANSF.P/RESULTADO",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40017",
+        "saldo_anterior": "0,00C",
+        "debito": "1.475.579,99",
+        "credito": "1.475.579,99",
+        "saldo_atual": "0,00C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "VL. TRANSF.P/RESULTADO",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40018",
+        "saldo_anterior": "0,00C",
+        "debito": "1.475.579,99",
+        "credito": "1.475.579,99",
+        "saldo_atual": "0,00C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "TRANSF.P/RESULTADO",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40019",
+        "saldo_anterior": "0,00C",
+        "debito": "1.475.579,99",
+        "credito": "1.475.579,99",
+        "saldo_atual": "0,00C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "RECEITAS FINANCEIRAS",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40009",
+        "saldo_anterior": "3,45C",
+        "debito": "0,29",
+        "credito": "0,29",
+        "saldo_atual": "3,45C"
+      }
+    },
+    {
+      "main_group": "RECEITAS",
+      "subgroup_1": null,
+      "specific_account": "RENDIMENTO",
+      "movement_type": "Receita",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "40010",
+        "saldo_anterior": "3,45C",
+        "debito": "0,29",
+        "credito": "0,29",
+        "saldo_atual": "3,45C"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "OUTRAS RECEITAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50026",
+        "saldo_anterior": "80,32C",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "80,32C"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "APLICAÇÕES FINANCEIRAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50048",
+        "saldo_anterior": "80,32C",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "80,32C"
+      }
+    },
+    {
+      "main_group": "CUSTOS",
+      "subgroup_1": null,
+      "specific_account": "CUSTOS E DESPESAS",
+      "movement_type": "Custo",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50000",
+        "saldo_anterior": "1.313.664,67D",
+        "debito": "1.420.776,98",
+        "credito": "1.420.776,98",
+        "saldo_atual": "1.313.664,67D"
+      }
+    },
+    {
+      "main_group": "CUSTOS",
+      "subgroup_1": null,
+      "specific_account": "CUSTOS OPERACIONAIS",
+      "movement_type": "Custo",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50001",
+        "saldo_anterior": "0,00D",
+        "debito": "1.177.903,60",
+        "credito": "1.177.903,60",
+        "saldo_atual": "0,00D"
+      }
+    },
+    {
+      "main_group": "CUSTOS",
+      "subgroup_1": null,
+      "specific_account": "CUSTOS MERC VENDIDAS E SERV.",
+      "movement_type": "Custo",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50004",
+        "saldo_anterior": "0,00D",
+        "debito": "1.177.903,60",
+        "credito": "1.177.903,60",
+        "saldo_atual": "0,00D"
+      }
+    },
+    {
+      "main_group": "CUSTOS",
+      "subgroup_1": null,
+      "specific_account": "CMV",
+      "movement_type": "Custo",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50050",
+        "saldo_anterior": "0,00D",
+        "debito": "1.167.502,35",
+        "credito": "1.167.502,35",
+        "saldo_atual": "0,00D"
+      }
+    },
+    {
+      "main_group": "CUSTOS",
+      "subgroup_1": null,
+      "specific_account": "CUSTO DOS SERVICOS PRESTADOS",
+      "movement_type": "Custo",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50005",
+        "saldo_anterior": "0,00D",
+        "debito": "10.401,25",
+        "credito": "10.401,25",
+        "saldo_atual": "0,00D"
+      }
+    },
+    {
+      "main_group": "CUSTOS",
+      "subgroup_1": null,
+      "specific_account": "CUSTO DOS SERVICOS",
+      "movement_type": "Custo",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50006",
+        "saldo_anterior": "0,00D",
+        "debito": "10.401,25",
+        "credito": "10.401,25",
+        "saldo_atual": "0,00D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS OPERACIONAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50002",
+        "saldo_anterior": "1.313.664,67D",
+        "debito": "242.873,38",
+        "credito": "242.873,38",
+        "saldo_atual": "1.313.664,67D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS ADMINISTRATIVAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50007",
+        "saldo_anterior": "4.301,66D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "4.301,66D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "HONORARIOS DA DIRETORIA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50079",
+        "saldo_anterior": "3.981,68D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.981,68D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "PRO-LABORE",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50080",
+        "saldo_anterior": "3.981,68D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.981,68D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "BENEFICIOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50082",
+        "saldo_anterior": "319,98D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "319,98D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SEGURO DE VIDA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50084",
+        "saldo_anterior": "319,98D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "319,98D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESP ADMINISTRATIVAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50010",
+        "saldo_anterior": "1.129.422,70D",
+        "debito": "113.658,38",
+        "credito": "113.658,38",
+        "saldo_atual": "1.129.422,70D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "PROVENTOS E ENCARGOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50017",
+        "saldo_anterior": "17.212,66D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "17.212,66D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "FERIAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50072",
+        "saldo_anterior": "507,03D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "507,03D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ORDENADOS E SALARIOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50071",
+        "saldo_anterior": "16.705,63D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "16.705,63D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ENCARGOS SOCIAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50018",
+        "saldo_anterior": "3.924,44D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.924,44D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "FGTS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50070",
+        "saldo_anterior": "830,37D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "830,37D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "INSS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50069",
+        "saldo_anterior": "3.094,07D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.094,07D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "BENEFICIOS CONCEDIDOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50019",
+        "saldo_anterior": "772,49D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "772,49D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "FORMAÇÃO PROFISSIONAL",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50063",
+        "saldo_anterior": "655,08D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "655,08D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "VALE REFEIÇÃO",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50060",
+        "saldo_anterior": "117,41D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "117,41D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SERV PREST P/PESSOA JURIDICA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50021",
+        "saldo_anterior": "675.880,91D",
+        "debito": "22.058,24",
+        "credito": "22.058,24",
+        "saldo_atual": "675.880,91D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "CONSULTORIA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50057",
+        "saldo_anterior": "19.932,04D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "19.932,04D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SERVICOS CONTABEIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50104",
+        "saldo_anterior": "85.452,52D",
+        "debito": "22.058,24",
+        "credito": "22.058,24",
+        "saldo_atual": "85.452,52D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SERVICOS PRESTADOS PJ",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50056",
+        "saldo_anterior": "570.496,35D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "570.496,35D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SERV PREST P/PESSOA FISICA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50022",
+        "saldo_anterior": "108.993,25D",
+        "debito": "25.597,23",
+        "credito": "25.597,23",
+        "saldo_atual": "108.993,25D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SERVIÇOS PF",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50058",
+        "saldo_anterior": "108.993,25D",
+        "debito": "25.597,23",
+        "credito": "25.597,23",
+        "saldo_atual": "108.993,25D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SERVIÇOS PUBLICOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50023",
+        "saldo_anterior": "92.280,22D",
+        "debito": "1.159,61",
+        "credito": "1.159,61",
+        "saldo_atual": "92.280,22D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "AGUA E ESGOTO",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50064",
+        "saldo_anterior": "9.882,57D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "9.882,57D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "CORREIOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50067",
+        "saldo_anterior": "9.178,36D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "9.178,36D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "CUSTAS JUDICIAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50068",
+        "saldo_anterior": "26.467,17D",
+        "debito": "743,57",
+        "credito": "743,57",
+        "saldo_atual": "26.467,17D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ENERGIA ELETRICA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50065",
+        "saldo_anterior": "7.071,29D",
+        "debito": "416,04",
+        "credito": "416,04",
+        "saldo_atual": "7.071,29D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "INTERNET E PROVEDORES",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50101",
+        "saldo_anterior": "33.414,22D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "33.414,22D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "TELEFONE",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50066",
+        "saldo_anterior": "6.266,61D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "6.266,61D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS GERAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50024",
+        "saldo_anterior": "230.358,73D",
+        "debito": "64.843,30",
+        "credito": "64.843,30",
+        "saldo_atual": "230.358,73D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ALIMENTAÇÃO",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50086",
+        "saldo_anterior": "8.558,76D",
+        "debito": "5.200,97",
+        "credito": "5.200,97",
+        "saldo_atual": "8.558,76D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ALUGUEL",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50087",
+        "saldo_anterior": "32.986,80D",
+        "debito": "6.235,12",
+        "credito": "6.235,12",
+        "saldo_atual": "32.986,80D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ANUNCIOS E PUBLICAÇÕES",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50088",
+        "saldo_anterior": "8.048,14D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "8.048,14D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ARRENDAMENTO MERCANTIL",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50089",
+        "saldo_anterior": "1.693,66D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "1.693,66D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ASSOSSIAÇÃO DE CLASSE",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50099",
+        "saldo_anterior": "3.228,74D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.228,74D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "BENS DE PEQUENO VALOR",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50090",
+        "saldo_anterior": "21.034,53D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "21.034,53D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "COMBUSTIVEIS E LUBRIFICANTES",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50091",
+        "saldo_anterior": "34.398,43D",
+        "debito": "8.900,03",
+        "credito": "8.900,03",
+        "saldo_atual": "34.398,43D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "CONDOMINIO E TAXAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50054",
+        "saldo_anterior": "9.202,05D",
+        "debito": "17.000,00",
+        "credito": "17.000,00",
+        "saldo_atual": "9.202,05D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "CONSERVAÇÃO E LIMPEZA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50092",
+        "saldo_anterior": "2.835,54D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "2.835,54D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS COM MANUTENCAO",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50103",
+        "saldo_anterior": "18.521,81D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "18.521,81D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS COM VEICULOS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50098",
+        "saldo_anterior": "21.389,98D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "21.389,98D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "IMPRESSOS A MAT. DE ESCRITORIO",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50100",
+        "saldo_anterior": "3.830,61D",
+        "debito": "15.000,02",
+        "credito": "15.000,02",
+        "saldo_atual": "3.830,61D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "INDENIZAÇÕES A TERCEIROS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50093",
+        "saldo_anterior": "700,00D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "700,00D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "SEGUROS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50097",
+        "saldo_anterior": "45.127,43D",
+        "debito": "12.507,16",
+        "credito": "12.507,16",
+        "saldo_atual": "45.127,43D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "TRANSPORTE DE MATERIAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50094",
+        "saldo_anterior": "5.847,44D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "5.847,44D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "TRANSPORTE DE PESSOAL",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50096",
+        "saldo_anterior": "562,36D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "562,36D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "VIAGENS E ESTADAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50095",
+        "saldo_anterior": "12.392,45D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "12.392,45D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS FINANC. LIQUIDAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50012",
+        "saldo_anterior": "12.947,84D",
+        "debito": "110.184,83",
+        "credito": "110.184,83",
+        "saldo_atual": "12.947,84D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS FINANCEIRAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50025",
+        "saldo_anterior": "12.947,84D",
+        "debito": "110.184,83",
+        "credito": "110.184,83",
+        "saldo_atual": "12.947,84D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS BANCARIAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50044",
+        "saldo_anterior": "11.944,24D",
+        "debito": "9.097,52",
+        "credito": "9.097,52",
+        "saldo_atual": "11.944,24D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "JUROS DE MORA",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50042",
+        "saldo_anterior": "1.003,60D",
+        "debito": "101.087,31",
+        "credito": "101.087,31",
+        "saldo_atual": "1.003,60D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS TRIBUTARIAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50013",
+        "saldo_anterior": "162.131,45D",
+        "debito": "19.030,17",
+        "credito": "19.030,17",
+        "saldo_atual": "162.131,45D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DEDUTIVEIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50027",
+        "saldo_anterior": "84.947,63D",
+        "debito": "16.566,49",
+        "credito": "16.566,49",
+        "saldo_atual": "84.947,63D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "ICMS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50011",
+        "saldo_anterior": "3.187,04D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.187,04D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "IMPOSTOS E TAXAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50037",
+        "saldo_anterior": "81.505,92D",
+        "debito": "14.081,47",
+        "credito": "14.081,47",
+        "saldo_atual": "81.505,92D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "IOF",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50106",
+        "saldo_anterior": "254,67D",
+        "debito": "2.485,02",
+        "credito": "2.485,02",
+        "saldo_atual": "254,67D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "NÃO DEDUTIVEIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50028",
+        "saldo_anterior": "77.183,82D",
+        "debito": "2.463,68",
+        "credito": "2.463,68",
+        "saldo_atual": "77.183,82D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "CSLL",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50039",
+        "saldo_anterior": "22.434,89D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "22.434,89D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "IRPJ",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50038",
+        "saldo_anterior": "31.454,78D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "31.454,78D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "MULTAS DE TRANSITO",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50041",
+        "saldo_anterior": "862,18D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "862,18D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "MULTAS FISCAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50040",
+        "saldo_anterior": "22.431,97D",
+        "debito": "2.463,68",
+        "credito": "2.463,68",
+        "saldo_atual": "22.431,97D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "DESPESAS COMERCIAIS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50015",
+        "saldo_anterior": "4.861,02D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "4.861,02D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "COM VENDAS",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50029",
+        "saldo_anterior": "4.861,02D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "4.861,02D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "COMISSÕES",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50033",
+        "saldo_anterior": "1.848,00D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "1.848,00D"
+      }
+    },
+    {
+      "main_group": "DESPESAS",
+      "subgroup_1": null,
+      "specific_account": "FRETE",
+      "movement_type": "Despesa",
+      "period_value": 0.0,
+      "original_data": {
+        "codigo": "50034",
+        "saldo_anterior": "3.013,02D",
+        "debito": "0,00",
+        "credito": "0,00",
+        "saldo_atual": "3.013,02D"
+      }
+    }
+  ]
+}
