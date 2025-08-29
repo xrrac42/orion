@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -40,7 +38,19 @@ export default function DashboardPage() {
   }, []);
 
 
-  if (loading) return <p>Carregando dashboard...</p>;
+  if (loading) {
+    return (
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="p-4 bg-gray-200 rounded animate-pulse h-24"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (error) return <p>Erro ao carregar dados: {error}</p>;
   if (!data) return <p>Nenhum dado encontrado para este balancete.</p>;
 

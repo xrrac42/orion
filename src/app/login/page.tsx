@@ -42,6 +42,14 @@ export default function LoginPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">

@@ -14,7 +14,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { ArrowLeftIcon, MagnifyingGlassIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 import { formatCurrency } from '@/lib/utils';
-import PieChart from '@/components/charts/PieChart';
+import HorizontalBarChart from '@/components/charts/HorizontalBarChart';
 import { GastoPorCategoria } from '@/types';
 
 // Helpers para gráficos
@@ -30,6 +30,27 @@ function pieGradient(list: { valor: number }[]) {
     const end = Math.round(cum * 100) / 100;
     return `${colorForIndex(i)} ${start}% ${end}%`;
   }).join(', ');
+}
+// Normalize category labels to avoid duplicate groups caused by case/accents/whitespace
+function normalizeCategory(input: any) {
+  if (input === null || input === undefined) return 'outros';
+  const s = String(input).trim();
+  if (!s) return 'outros';
+  // remove diacritics, collapse whitespace and lowercase
+  try {
+    const noDiacritics = s.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+    return noDiacritics.replace(/\s+/g, ' ').toLowerCase();
+  } catch (e) {
+    // Fallback for environments that don't support \p{Diacritic}
+    const noDiacritics = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return noDiacritics.replace(/\s+/g, ' ').toLowerCase();
+  }
+}
+
+function addToMap(map: Map<string, number>, labelMap: Map<string, string>, rawLabel: any, value: number) {
+  const key = normalizeCategory(rawLabel || 'outros');
+  if (!labelMap.has(key)) labelMap.set(key, String(rawLabel || 'Outros'));
+  map.set(key, (map.get(key) || 0) + (Number(value) || 0));
 }
 // Supondo que você tenha componentes de gráficos
 // import { PieChart } from '@/components/charts/PieChart';
@@ -76,7 +97,9 @@ interface Cliente { id: string; nome: string; }
 interface Balancete { id: string; ano: number; mes: number; analysis_id?: number; }
 interface KPIData { receita_total: number; despesa_total: number; resultado_periodo: number; }
 interface ChartData { categoria: string; valor: number; }
-interface ContaDetalhe { conta: string; valor: number; subgrupo: string; movement_type?: 'Receita' | 'Despesa' }
+interface ContaDetalhe {
+  specific_account: string; conta: string; valor: number; subgrupo: string; movement_type?: 'Receita' | 'Despesa' 
+}
 
 // --- Componente Principal ---
 export default function DashboardFinanceiro() {
@@ -119,46 +142,52 @@ export default function DashboardFinanceiro() {
     // Always compute chart aggregates from the full source: contasDetalhes
     const entries = contasDetalhes || [];
 
-    // Accumulators
-    let totalReceita = 0;
-    let totalDespesa = 0;
-    const receitaMap = new Map<string, number>();
-    const despesaMap = new Map<string, number>();
+  // Accumulators
+  let totalReceita = 0;
+  let totalDespesa = 0;
+  const receitaMap = new Map<string, number>();
+  const despesaMap = new Map<string, number>();
+  const receitaLabelMap = new Map<string, string>();
+  const despesaLabelMap = new Map<string, string>();
 
     for (const raw of entries) {
       const e: any = raw;
       const mv = e.movement_type ? String(e.movement_type).trim().toLowerCase() : '';
       const val = Number(e.valor ?? 0) || 0;
-      const sub = e.subgrupo || 'Outros';
+      // Prefer conta específica (specific_account) as category for the pie charts
+      const rawCategoria = (e.conta || e.subgrupo || 'Outros');
 
       if (mv === 'receita') {
         totalReceita += val;
-        receitaMap.set(sub, (receitaMap.get(sub) || 0) + val);
+        addToMap(receitaMap, receitaLabelMap, rawCategoria, val);
       } else {
         totalDespesa += val;
-        despesaMap.set(sub, (despesaMap.get(sub) || 0) + val);
+        addToMap(despesaMap, despesaLabelMap, rawCategoria, val);
       }
     }
 
-    const makeArray = (m: Map<string, number>, total: number, colors: string[]) => {
+    const makeArray = (m: Map<string, number>, total: number, colors: string[], labelMap?: Map<string, string>) => {
       return Array.from(m.entries())
         .sort((a, b) => b[1] - a[1])
-        .map(([categoria, valor], idx) => ({
-          categoria,
-          valor,
-          percentual: total && total > 0 ? (valor / total) * 100 : 0,
-          cor: colors[idx % colors.length],
-          contas_detalhadas: []
-        }));
+        .map(([key, valor], idx) => {
+          const rawLabel = labelMap?.get(key) || key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          return ({
+            categoria: rawLabel,
+            valor,
+            percentual: total && total > 0 ? (valor / total) * 100 : 0,
+            cor: colors[idx % colors.length],
+            contas_detalhadas: []
+          });
+        });
     };
 
     const receitaArr = (receitaChartState && receitaChartState.length > 0)
       ? receitaChartState
-      : makeArray(receitaMap, (kpiData?.receita_total ?? totalReceita), ['#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7']);
+      : makeArray(receitaMap, (kpiData?.receita_total ?? totalReceita), ['#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7'], receitaLabelMap);
 
     const despesaArr = (despesaChartState && despesaChartState.length > 0)
       ? despesaChartState
-      : makeArray(despesaMap, (kpiData?.despesa_total ?? totalDespesa), ['#EF4444', '#F97316', '#F59E0B', '#EAB308', '#D97706']);
+      : makeArray(despesaMap, (kpiData?.despesa_total ?? totalDespesa), ['#EF4444', '#F97316', '#F59E0B', '#EAB308', '#D97706'], despesaLabelMap);
 
     const margem = (kpiData && kpiData.receita_total > 0)
       ? (kpiData.resultado_periodo / kpiData.receita_total) * 100
@@ -238,8 +267,59 @@ export default function DashboardFinanceiro() {
           if (found && found.analysis_id) selectedAnalysisIds.push(found.analysis_id as number);
         });
 
-  if (selectedAnalysisIds.length === selectedPeriods.length) {
-          // we have analysis_ids for all selected periods — call aggregate endpoint
+        if (selectedAnalysisIds.length === selectedPeriods.length) {
+          // if there's exactly one analysis_id, prefer the dedicated view endpoint which returns KPIs/chart/entries
+          if (selectedAnalysisIds.length === 1) {
+            const aid = selectedAnalysisIds[0];
+            try {
+              const res = await fetch(`${API_BASE_URL}/api/financial-entries/analysis/${aid}/view`);
+              if (res.ok) {
+                const payload = await res.json();
+                console.debug('[dashboard] analysis view payload:', payload);
+                setLastAggregatePayload(payload);
+                const k = payload.kpis || {};
+                setKpiData({ receita_total: Number(k.receita_total || 0), despesa_total: Number(k.despesa_total || 0), resultado_periodo: Number(k.resultado_periodo || 0) });
+                if (Array.isArray(payload.grafico_receitas)) {
+                  const arr = payload.grafico_receitas.map((item: any, idx: number) => ({
+                    categoria: item.categoria || item.specific_account || 'Outros',
+                    valor: Number(item.valor || 0),
+                    percentual: 0,
+                    cor: colorForIndex(idx),
+                    contas_detalhadas: []
+                  }));
+                  const total = arr.reduce((s: number, it: any) => s + it.valor, 0) || 0;
+                  if (total > 0) arr.forEach((it: any) => it.percentual = (it.valor / total) * 100);
+                  setReceitaChartState(arr);
+                } else setReceitaChartState([]);
+                if (Array.isArray(payload.grafico_despesas)) {
+                  const arr = payload.grafico_despesas.map((item: any, idx: number) => ({
+                    categoria: item.categoria || item.specific_account || 'Outros',
+                    valor: Number(item.valor || 0),
+                    percentual: 0,
+                    cor: colorForIndex(idx),
+                    contas_detalhadas: []
+                  }));
+                  const total = arr.reduce((s: number, it: any) => s + it.valor, 0) || 0;
+                  if (total > 0) arr.forEach((it: any) => it.percentual = (it.valor / total) * 100);
+                  setDespesaChartState(arr);
+                } else setDespesaChartState([]);
+                const detalhes = (payload.financial_entries || []).map((entry: any) => ({
+                  conta: entry.specific_account,
+                  valor: entry.period_value,
+                  subgrupo: entry.subgroup_1 || 'N/A',
+                  movement_type: entry.movement_type
+                }));
+                setContasDetalhes(detalhes);
+                setLoading(false);
+                return;
+              }
+              console.warn('[dashboard] analysis view endpoint returned non-OK, falling back to aggregate', res.status);
+            } catch (e) {
+              console.warn('[dashboard] analysis view endpoint failed, falling back to aggregate', e);
+            }
+          }
+
+          // Otherwise fall back to aggregate endpoint for multiple analyses
           try {
             const res = await fetch(`${API_BASE_URL}/api/dashboard/aggregate`, {
               method: 'POST',
@@ -253,11 +333,31 @@ export default function DashboardFinanceiro() {
               const k = payload.kpis || {};
               setKpiData({ receita_total: Number(k.receita_total || 0), despesa_total: Number(k.despesa_total || 0), resultado_periodo: Number(k.resultado_periodo || 0) });
 
-              // use provided grafico arrays if present
-              if (Array.isArray(payload.grafico_receitas)) setReceitaChartState(payload.grafico_receitas);
-              else setReceitaChartState([]);
-              if (Array.isArray(payload.grafico_despesas)) setDespesaChartState(payload.grafico_despesas);
-              else setDespesaChartState([]);
+              // use provided grafico arrays if present (normalize shape to include cor/percentual)
+              if (Array.isArray(payload.grafico_receitas)) {
+                const arr = payload.grafico_receitas.map((item: any, idx: number) => ({
+                  categoria: item.categoria || item.specific_account || 'Outros',
+                  valor: Number(item.valor || 0),
+                  percentual: 0,
+                  cor: colorForIndex(idx),
+                  contas_detalhadas: []
+                }));
+                const total = arr.reduce((s: number, it: any) => s + it.valor, 0) || 0;
+                if (total > 0) arr.forEach((it: any) => it.percentual = (it.valor / total) * 100);
+                setReceitaChartState(arr);
+              } else setReceitaChartState([]);
+              if (Array.isArray(payload.grafico_despesas)) {
+                const arr = payload.grafico_despesas.map((item: any, idx: number) => ({
+                  categoria: item.categoria || item.specific_account || 'Outros',
+                  valor: Number(item.valor || 0),
+                  percentual: 0,
+                  cor: colorForIndex(idx),
+                  contas_detalhadas: []
+                }));
+                const total = arr.reduce((s: number, it: any) => s + it.valor, 0) || 0;
+                if (total > 0) arr.forEach((it: any) => it.percentual = (it.valor / total) * 100);
+                setDespesaChartState(arr);
+              } else setDespesaChartState([]);
 
               const detalhes = (payload.financial_entries || []).map((entry: any) => ({
                 conta: entry.specific_account,
@@ -269,7 +369,6 @@ export default function DashboardFinanceiro() {
               setLoading(false);
               return;
             }
-            // else fallthrough to client-side aggregation
             console.warn('[dashboard] aggregate endpoint returned non-OK, falling back to client aggregation', res.status);
           } catch (e) {
             console.warn('[dashboard] aggregate endpoint failed, falling back to client aggregation', e);
@@ -293,10 +392,30 @@ export default function DashboardFinanceiro() {
               setLastAggregatePayload(payload);
               const k = payload.kpis || {};
               setKpiData({ receita_total: Number(k.receita_total || 0), despesa_total: Number(k.despesa_total || 0), resultado_periodo: Number(k.resultado_periodo || 0) });
-              if (Array.isArray(payload.grafico_receitas)) setReceitaChartState(payload.grafico_receitas);
-              else setReceitaChartState([]);
-              if (Array.isArray(payload.grafico_despesas)) setDespesaChartState(payload.grafico_despesas);
-              else setDespesaChartState([]);
+              if (Array.isArray(payload.grafico_receitas)) {
+                const arr = payload.grafico_receitas.map((item: any, idx: number) => ({
+                  categoria: item.categoria || item.specific_account || 'Outros',
+                  valor: Number(item.valor || 0),
+                  percentual: 0,
+                  cor: colorForIndex(idx),
+                  contas_detalhadas: []
+                }));
+                const total = arr.reduce((s: number, it: any) => s + it.valor, 0) || 0;
+                if (total > 0) arr.forEach((it: any) => it.percentual = (it.valor / total) * 100);
+                setReceitaChartState(arr);
+              } else setReceitaChartState([]);
+              if (Array.isArray(payload.grafico_despesas)) {
+                const arr = payload.grafico_despesas.map((item: any, idx: number) => ({
+                  categoria: item.categoria || item.specific_account || 'Outros',
+                  valor: Number(item.valor || 0),
+                  percentual: 0,
+                  cor: colorForIndex(idx),
+                  contas_detalhadas: []
+                }));
+                const total = arr.reduce((s: number, it: any) => s + it.valor, 0) || 0;
+                if (total > 0) arr.forEach((it: any) => it.percentual = (it.valor / total) * 100);
+                setDespesaChartState(arr);
+              } else setDespesaChartState([]);
               const detalhes = (payload.financial_entries || []).map((entry: any) => ({
                 conta: entry.specific_account,
                 valor: entry.period_value,
@@ -326,8 +445,10 @@ export default function DashboardFinanceiro() {
         let aggDespesa = 0;
         let aggResultado = 0;
         let allEntries: any[] = [];
-        const receitaMap = new Map<string, number>();
-        const despesaMap = new Map<string, number>();
+  const receitaMap = new Map<string, number>();
+  const despesaMap = new Map<string, number>();
+  const receitaLabelMap = new Map<string, string>();
+  const despesaLabelMap = new Map<string, string>();
 
         for (const r of results) {
           if (r.status === 'fulfilled') {
@@ -341,14 +462,12 @@ export default function DashboardFinanceiro() {
             // Prefer API-provided pre-aggregated chart data when available
             if (d.grafico_receitas && Array.isArray(d.grafico_receitas)) {
               d.grafico_receitas.forEach((item: any) => {
-                const key = item.categoria || 'Outros';
-                receitaMap.set(key, (receitaMap.get(key) || 0) + Number(item.valor || 0));
+                addToMap(receitaMap, receitaLabelMap, item.categoria || item.specific_account || 'Outros', Number(item.valor || 0));
               });
             }
             if (d.grafico_despesas && Array.isArray(d.grafico_despesas)) {
               d.grafico_despesas.forEach((item: any) => {
-                const key = item.categoria || 'Outros';
-                despesaMap.set(key, (despesaMap.get(key) || 0) + Number(item.valor || 0));
+                addToMap(despesaMap, despesaLabelMap, item.categoria || item.specific_account || 'Outros', Number(item.valor || 0));
               });
             }
           } else {
@@ -360,9 +479,9 @@ export default function DashboardFinanceiro() {
         setKpiData({ receita_total: aggReceita, despesa_total: aggDespesa, resultado_periodo: aggResultado });
 
         // build chart arrays from receitaMap/despesaMap if they were populated
-        if (receitaMap.size > 0) {
-          const receitaArr: GastoPorCategoria[] = Array.from(receitaMap.entries()).map(([categoria, valor], idx) => ({
-            categoria,
+              if (receitaMap.size > 0) {
+          const receitaArr: GastoPorCategoria[] = Array.from(receitaMap.entries()).map(([key, valor], idx) => ({
+            categoria: receitaLabelMap.get(key) || key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
             valor,
             percentual: aggReceita > 0 ? (valor / aggReceita) * 100 : 0,
             cor: colorForIndex(idx),
@@ -374,8 +493,8 @@ export default function DashboardFinanceiro() {
         }
 
         if (despesaMap.size > 0) {
-          const despesaArr: GastoPorCategoria[] = Array.from(despesaMap.entries()).map(([categoria, valor], idx) => ({
-            categoria,
+          const despesaArr: GastoPorCategoria[] = Array.from(despesaMap.entries()).map(([key, valor], idx) => ({
+            categoria: despesaLabelMap.get(key) || key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
             valor,
             percentual: aggDespesa > 0 ? (valor / aggDespesa) * 100 : 0,
             cor: colorForIndex(idx),
@@ -395,7 +514,8 @@ export default function DashboardFinanceiro() {
           conta: entry.specific_account,
           valor: entry.period_value,
           subgrupo: entry.subgroup_1 || 'N/A',
-          movement_type: entry.movement_type
+          movement_type: entry.movement_type,
+          specific_account: entry.specific_account || 'N/A'
         }));
         setContasDetalhes(detalhes);
 
@@ -520,11 +640,11 @@ export default function DashboardFinanceiro() {
     );
   }
 
+  // Adicionando melhorias visuais e estruturais
   return (
     <MainLayout>
-      <div className="py-6">
+      <div className="py-6 bg-gray-50 space-y-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Dashboard: {cliente.nome}</h1>
@@ -546,53 +666,60 @@ export default function DashboardFinanceiro() {
             </div>
             {availableAnalyses.length > 0 && (
               <div className="relative" ref={dropdownRef}>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-base font-medium text-gray-700 mr-4">{i18n.selectPeriodsLabel}</label>
-          <div className="flex items-center space-x-2">
-          <Button 
-  variant="outline" 
-  size="sm"
-  className="cursor-pointer"
-  onClick={() => setPeriodsOpen(p => !p)}
->
-        {selectedPeriods.length > 0 ? `${selectedPeriods.length} selecionado(s)` : 'Abrir'}
-      </Button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setPeriodsOpen(!periodsOpen)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-200 bg-white rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                    aria-expanded={periodsOpen}
+                  >
+                    <CalendarIcon className="h-5 w-5 mr-2 text-gray-500" />
+                    {selectedPeriods.length > 0 ? `${selectedPeriods.length} selecionado(s)` : 'Selecione períodos'}
+                  </button>
 
-      <Button 
-        variant="outline" 
-        size="sm"
-        className="cursor-pointer"
-        onClick={() => setSelectedPeriods([])}
-      >
-        {i18n.clearSelection}
-      </Button>
-          </div>
+                  {selectedPeriods.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPeriods([])}
+                      className="inline-flex items-center px-3 py-2 border border-transparent bg-gray-100 rounded-md text-sm text-gray-600 hover:bg-gray-200"
+                    >
+                      Limpar seleção
+                    </button>
+                  )}
                 </div>
 
                 {periodsOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white border rounded-md shadow-lg z-20 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-base font-medium text-gray-700">{i18n.selectPeriodsLabel}</div>
-                      <div className="space-x-2">
-                        <button className="text-xs px-2 py-1 border border-gray-200 rounded text-blue-600 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedPeriods(availableAnalyses.map(a => `${a.ano}-${a.mes}`))}>{i18n.selectAll}</button>
-                        <button className="text-xs px-2 py-1 border border-gray-200 rounded text-gray-700 bg-white hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedPeriods([])}>{i18n.clearSelection}</button>
-                      </div>
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded shadow-lg z-20">
+                    <div className="p-2 border-b border-gray-100 flex items-center justify-between">
+                      <button
+                        className="text-sm text-gray-600 hover:underline"
+                        onClick={() => setSelectedPeriods(availableAnalyses.map(a => `${a.ano}-${a.mes}`))}
+                      >
+                        Selecionar todos
+                      </button>
+                      <button
+                        className="text-sm text-gray-500 hover:underline"
+                        onClick={() => setPeriodsOpen(false)}
+                      >Fechar</button>
                     </div>
-                    <div className="max-h-44 overflow-auto">
-                      {availableAnalyses.map((b) => {
-                        const val = `${b.ano}-${b.mes}`;
+                    <div className="max-h-60 overflow-auto">
+                      {availableAnalyses.map(a => {
+                        const val = `${a.ano}-${a.mes}`;
                         const checked = selectedPeriods.includes(val);
                         return (
-                          <label key={val} className="flex items-center text-sm p-1">
+                          <label key={val} className="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => {
-                                setSelectedPeriods(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+                                setSelectedPeriods(prev => {
+                                  if (prev.includes(val)) return prev.filter(x => x !== val);
+                                  return [...prev, val];
+                                });
                               }}
-                              className="mr-2"
+                              className="mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded"
                             />
-                            <span>{formatMonth(b.mes, b.ano)}</span>
+                            <span className="text-sm text-gray-700">{formatMonth(a.mes, a.ano)}</span>
                           </label>
                         );
                       })}
@@ -637,101 +764,67 @@ export default function DashboardFinanceiro() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <Card>
-              <CardHeader><CardTitle>De Onde Vieram suas Receitas?</CardTitle></CardHeader>
+              <CardHeader><CardTitle> Categorias de Receita</CardTitle></CardHeader>
               <CardContent>
                 {receitaChartData.length === 0 ? (
                   <p className="text-sm text-gray-500">Nenhuma receita encontrada para o(s) período(s) selecionado(s).</p>
                 ) : (
-                  <div className="flex items-center space-x-4">
-                    <div style={{ width: 320, height: 320 }}>
-                      <PieChart data={receitaChartData} title="Receitas por Categoria" />
-                    </div>
-                    <div>
-                      {receitaChartData.map((r: GastoPorCategoria, idx: number) => (
-                        <div key={r.categoria} className="flex items-center text-sm mb-2">
-                          <span className="inline-block w-3 h-3 mr-2 rounded" style={{ background: r.cor }}></span>
-                          <span className="font-medium mr-2">{r.categoria}</span>
-                          <span className="text-gray-500">{formatCurrency(r.valor)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <HorizontalBarChart data={receitaChartData.slice(0, 7)} title="Receitas por Categoria" />
                 )}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Para Onde Foi seu Dinheiro?</CardTitle></CardHeader>
+              <CardHeader><CardTitle> Categorias de Despesa</CardTitle></CardHeader>
               <CardContent>
                 {despesaChartData.length === 0 ? (
                   <p className="text-sm text-gray-500">Nenhuma despesa encontrada para o(s) período(s) selecionado(s).</p>
                 ) : (
-                  <div className="flex items-center space-x-4">
-                    <div style={{ width: 320, height: 320 }}>
-                      <PieChart data={despesaChartData} title="Despesas por Categoria" />
-                    </div>
-                    <div>
-                      {despesaChartData.map((r: GastoPorCategoria, idx: number) => (
-                        <div key={r.categoria} className="flex items-center text-sm mb-2">
-                          <span className="inline-block w-3 h-3 mr-2 rounded" style={{ background: r.cor }}></span>
-                          <span className="font-medium mr-2">{r.categoria}</span>
-                          <span className="text-gray-500">{formatCurrency(r.valor)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <HorizontalBarChart data={despesaChartData.slice(0, 7)} title="Despesas por Categoria" />
                 )}
               </CardContent>
             </Card>
           </div>
 
           <Card>
-            <CardHeader className="flex items-center justify-between"><CardTitle>Detalhes por Conta</CardTitle>
-              <div className="flex items-center space-x-2">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Pesquisar conta..."
-                    className="w-64"
-                  />
-                </div>
-              </div>
+            <CardHeader className="flex justify-between mb-1">
+              <CardTitle className="text-left mb-8">Detalhes por Conta</CardTitle>
+              <Input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Pesquisar conta..."
+                className="w-64"
+              />
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Conta Específica</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEntries.length > 0 ? (
-                      filteredEntries.map((entry, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{entry.conta}</TableCell>
-                          <TableCell>{entry.subgrupo || '-'}</TableCell>
-                          <TableCell>{(entry as any).movement_type}</TableCell>
-                          <TableCell className={`text-right font-mono ${(entry as any).movement_type === 'Receita' ? 'text-green-600' : 'text-red-600'}`}>
-                            {formatCurrency(entry.valor)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">Nenhum lançamento encontrado para o(s) período(s) selecionado(s).</TableCell>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Conta Específica</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEntries.length > 0 ? (
+                    filteredEntries.map((entry, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{entry.conta}</TableCell>
+                        <TableCell>{entry.specific_account || '-'}</TableCell>
+                        <TableCell>{entry.movement_type}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(entry.valor)}</TableCell>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center">Nenhum lançamento encontrado.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-
         </div>
       </div>
     </MainLayout>

@@ -77,7 +77,7 @@ def aggregate_dashboard(payload: dict = Body(...)):
                 return True
             return 'receita' in m
 
-        # Aggregate values by subgroup_1
+        # Aggregate values by specific_account (preferred) and movement_type
         receitas_map = {}
         despesas_map = {}
         total_receitas = 0.0
@@ -86,8 +86,8 @@ def aggregate_dashboard(payload: dict = Body(...)):
         for e in entries:
             mt_raw = e.get('movement_type') or ''
             is_rec = _is_receita(mt_raw)
-            # prefer subgroup_1 but accept common alternatives
-            cat = e.get('subgroup_1') or e.get('subgrupo') or 'Outros'
+            # prefer specific_account, then subgroup_1, then subgroup
+            cat = e.get('specific_account') or e.get('subgroup_1') or e.get('subgrupo') or 'Outros'
             try:
                 val = float(e.get('period_value') or 0)
             except Exception:
@@ -105,21 +105,38 @@ def aggregate_dashboard(payload: dict = Body(...)):
                 despesas_map[cat] = despesas_map.get(cat, 0.0) + val
                 total_despesas += val
 
+        # color palette for charts
+        colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#f97316']
+
         def map_to_array(m: dict, total: float):
             arr = []
             for k, v in m.items():
                 percentual = (v / total * 100) if total > 0 else 0
                 arr.append({'categoria': k, 'valor': v, 'percentual': percentual})
             arr.sort(key=lambda x: x['valor'], reverse=True)
+            for idx, it in enumerate(arr):
+                it['cor'] = colors[idx % len(colors)]
             return arr
 
         grafico_receitas = map_to_array(receitas_map, total_receitas)
         grafico_despesas = map_to_array(despesas_map, total_despesas)
 
+        # KPIs
+        def _to_float(v, fallback=0.0):
+            try:
+                if v is None:
+                    return float(fallback)
+                return float(v)
+            except Exception:
+                try:
+                    return float(str(v).replace('.', '').replace(',', '.'))
+                except Exception:
+                    return float(fallback)
+
         kpis = {
             'receita_total': total_receitas,
             'despesa_total': total_despesas,
-            'resultado_periodo': total_receitas - total_despesas
+            'resultado_periodo': (total_receitas - total_despesas)
         }
 
         return {
@@ -212,18 +229,22 @@ def get_dashboard_by_analysis(analysis_id: int):
         entries_resp = supabase.table('financial_entries').select('*').eq('analysis_id', analysis_id).execute()
         entries = entries_resp.data if getattr(entries_resp, 'data', None) else []
 
-        # build charts from entries
+        # build charts from entries, preferring specific_account for categories
         receitas_map = {}
         despesas_map = {}
         total_receitas = 0.0
         total_despesas = 0.0
         for e in entries:
             mt = (e.get('movement_type') or '').strip().lower()
-            cat = e.get('subgroup_1') or 'Outros'
+            cat = e.get('specific_account') or e.get('subgroup_1') or 'Outros'
             try:
                 val = float(e.get('period_value') or 0)
             except Exception:
-                val = 0.0
+                try:
+                    sval = str(e.get('period_value') or '0').replace('.', '').replace(',', '.')
+                    val = float(sval)
+                except Exception:
+                    val = 0.0
             if mt == 'receita' or mt == 'r' or 'receita' in mt:
                 receitas_map[cat] = receitas_map.get(cat, 0.0) + val
                 total_receitas += val
@@ -231,21 +252,25 @@ def get_dashboard_by_analysis(analysis_id: int):
                 despesas_map[cat] = despesas_map.get(cat, 0.0) + val
                 total_despesas += val
 
+        colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#f97316']
+
         def map_to_array(m, total):
             arr = []
             for k, v in m.items():
                 percentual = (v / total * 100) if total > 0 else 0
                 arr.append({ 'categoria': k, 'valor': v, 'percentual': percentual })
             arr.sort(key=lambda x: x['valor'], reverse=True)
+            for idx, it in enumerate(arr):
+                it['cor'] = colors[idx % len(colors)]
             return arr
 
         grafico_receitas = map_to_array(receitas_map, total_receitas)
         grafico_despesas = map_to_array(despesas_map, total_despesas)
 
         kpis = {
-            'receita_total': report.get('total_receitas'),
-            'despesa_total': report.get('total_despesas'),
-            'resultado_periodo': report.get('lucro_bruto')
+            'receita_total': report.get('total_receitas') if report.get('total_receitas') is not None else total_receitas,
+            'despesa_total': report.get('total_despesas') if report.get('total_despesas') is not None else total_despesas,
+            'resultado_periodo': report.get('lucro_bruto') if report.get('lucro_bruto') is not None else (total_receitas - total_despesas)
         }
 
         return {

@@ -130,14 +130,19 @@ async def create_analysis_and_entries(client_id: str, file_upload_id: str, analy
             dt_obj = datetime.utcnow()
 
     report_date_iso = dt_obj.strftime('%Y-%m-%d')
-    year, month = dt_obj.year, dt_obj.month
+
+    # Prioritize the year/month provided by the upload form (analysis_data)
+    # Fallback order: form values -> parsed PDF date -> current UTC date
+    now = datetime.utcnow()
+    reference_year = analysis_data.get('reference_year') or (dt_obj.year if dt_obj else now.year)
+    reference_month = analysis_data.get('reference_month') or (dt_obj.month if dt_obj else now.month)
     
     # Build payload but only include totals when parser provided them (avoid overwriting existing values with zeros)
     analysis_payload = {
         "client_id": client_id,
         "client_name": analysis_data.get("cliente", "Não Identificado"),
-        "reference_year": year,
-        "reference_month": month,
+        "reference_year": reference_year,
+        "reference_month": reference_month,
         "report_date": report_date_iso,
         "status": "completed",
         "source_file_path": f"public/{client_id}/{analysis_data.get('file_name', '')}",

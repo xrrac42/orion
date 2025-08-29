@@ -485,3 +485,98 @@ async def get_financial_entries(
     except Exception as e:
         logger.error(f"Erro ao buscar lançamentos financeiros: {e}")
         raise HTTPException(status_code=500, detail="Erro interno do servidor")
+
+
+@router.get('/analysis/{analysis_id}/view')
+async def get_financial_entries_for_analysis_view(analysis_id: int):
+    """Retorna KPIs, gráficos e lançamentos para uma analysis_id no formato esperado pelo frontend."""
+    try:
+        supabase = get_supabase_client()
+
+        # Fetch monthly_analyses line
+        resp = supabase.table('monthly_analyses').select('*').eq('id', analysis_id).maybe_single().execute()
+        if not getattr(resp, 'data', None):
+            raise HTTPException(status_code=404, detail='Analysis não encontrada')
+        report = resp.data
+
+        # Fetch entries
+        entries_resp = supabase.table('financial_entries').select('*').eq('analysis_id', analysis_id).execute()
+        entries = entries_resp.data if getattr(entries_resp, 'data', None) else []
+
+        # Build charts: aggregate by specific_account (preferred) and movement_type
+        receitas_map = {}
+        despesas_map = {}
+        total_receitas = 0.0
+        total_despesas = 0.0
+
+        def _is_receita(mv_raw):
+            if not mv_raw:
+                return False
+            m = str(mv_raw).strip().lower()
+            return (m == 'r' or m.startswith('r') or 'receita' in m)
+
+        for e in entries:
+            try:
+                val = float(e.get('period_value') or 0)
+            except Exception:
+                sval = str(e.get('period_value') or '0').replace('.', '').replace(',', '.')
+                try:
+                    val = float(sval)
+                except Exception:
+                    val = 0.0
+
+            # prefer specific_account for pie categories; fallback to subgroup_1 or 'Outros'
+            cat = e.get('specific_account') or e.get('subgroup_1') or e.get('subgrupo') or 'Outros'
+            if _is_receita(e.get('movement_type')):
+                receitas_map[cat] = receitas_map.get(cat, 0.0) + val
+                total_receitas += val
+            else:
+                despesas_map[cat] = despesas_map.get(cat, 0.0) + val
+                total_despesas += val
+
+        # color palette for frontend-ish consistency
+        colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#f97316']
+
+        def map_to_array(m: dict, total: float):
+            arr = []
+            for k, v in m.items():
+                percentual = (v / total * 100) if total > 0 else 0
+                arr.append({'categoria': k, 'valor': v, 'percentual': percentual})
+            arr.sort(key=lambda x: x['valor'], reverse=True)
+            # append color for each item
+            for idx, it in enumerate(arr):
+                it['cor'] = colors[idx % len(colors)]
+            return arr
+
+        grafico_receitas = map_to_array(receitas_map, total_receitas)
+        grafico_despesas = map_to_array(despesas_map, total_despesas)
+
+        # KPIs: prefer numbers from monthly_analyses but cast to float
+        def _to_float(v, fallback=0.0):
+            try:
+                if v is None:
+                    return float(fallback)
+                return float(v)
+            except Exception:
+                try:
+                    return float(str(v).replace('.', '').replace(',', '.'))
+                except Exception:
+                    return float(fallback)
+
+        kpis = {
+            'receita_total': _to_float(report.get('total_receitas'), total_receitas),
+            'despesa_total': _to_float(report.get('total_despesas'), total_despesas),
+            'resultado_periodo': _to_float(report.get('lucro_bruto'), (total_receitas - total_despesas))
+        }
+
+        return {
+            'kpis': kpis,
+            'grafico_receitas': grafico_receitas,
+            'grafico_despesas': grafico_despesas,
+            'financial_entries': entries
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro ao construir view de financial_entries para analysis {analysis_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,10 +1,10 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Logo from '@/assets/logo.png';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { 
   Bars3Icon, 
@@ -18,6 +18,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { supabase } from '@/lib/supabase';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -26,7 +27,7 @@ interface MainLayoutProps {
 const navigation = [
   { name: 'Início', href: '/dashboard', icon: HomeIcon },
   { name: 'Clientes', href: '/clientes', icon: UsersIcon },
-  { name: 'Relatórios', href: '/relatorios', icon: DocumentTextIcon },
+  // { name: 'Relatórios', href: '/relatorios', icon: DocumentTextIcon },
   { name: 'Configurações', href: '/configuracoes', icon: CogIcon },
   { name: 'Ajuda', href: '/ajuda', icon: QuestionMarkCircleIcon },
 ];
@@ -34,7 +35,21 @@ const navigation = [
 export default function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Error fetching user email:', error);
+      } else {
+        setUserEmail(user?.email || null);
+      }
+    };
+
+    fetchUserEmail();
+  }, []);
 
   return (
     <div className="h-screen flex overflow-hidden bg-white">
@@ -54,7 +69,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               <XMarkIcon className="h-6 w-6 text-white" />
             </button>
           </div>
-          <SidebarContent pathname={pathname} collapsed={false} />
+          <SidebarContent pathname={pathname} collapsed={false} userEmail={userEmail} />
         </div>
       </div>
 
@@ -68,6 +83,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             pathname={pathname} 
             collapsed={sidebarCollapsed} 
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            userEmail={userEmail}
           />
         </div>
       </div>
@@ -94,12 +110,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
 function SidebarContent({ 
   pathname, 
   collapsed = false, 
-  onToggleCollapse 
+  onToggleCollapse,
+  userEmail
 }: { 
   pathname: string; 
   collapsed?: boolean; 
   onToggleCollapse?: () => void; 
+  userEmail?: string | null;
 }) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+    } catch (err) {
+      console.error('Logout failed', err);
+    }
+  };
   return (
     <div className="flex flex-col h-0 flex-1 bg-white border-r border-gray-100">
       <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -178,14 +206,15 @@ function SidebarContent({
             <>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-black truncate">Empresa Contábil</p>
-                <p className="text-xs text-gray-500 truncate">admin@empresa.com</p>
+                <p className="text-xs text-gray-500 truncate">{userEmail || 'Carregando...'}</p>
               </div>
-              <button className="ml-3 flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={handleLogout} className="ml-3 flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 transition-colors" title="Sair">
                 <ArrowRightOnRectangleIcon className="h-5 w-5" />
               </button>
             </>
           ) : (
             <button 
+              onClick={handleLogout}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
               title="Sair"
             >
